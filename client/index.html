@@ -1,0 +1,557 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Temp Upload</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Inter', sans-serif;
+      background: #f5f5f4;
+      color: #1c1917;
+      min-height: 100vh;
+      display: flex;
+      justify-content: center;
+      padding: 2rem 1.5rem;
+    }
+
+    .page { width: 100%; max-width: 460px; }
+
+    h1 { font-size: 1.15rem; font-weight: 600; margin-bottom: 0.2rem; }
+    .subtitle { font-size: 0.8rem; color: #a8a29e; margin-bottom: 1.5rem; }
+
+    .card {
+      background: #fff;
+      border: 1px solid #e7e5e4;
+      border-radius: 16px;
+      padding: 1.5rem;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+      margin-bottom: 1.25rem;
+    }
+
+    /* Drop Zone */
+    .drop-zone {
+      border: 1.5px dashed #d6d3d1;
+      border-radius: 10px;
+      padding: 2rem 1rem;
+      text-align: center;
+      cursor: pointer;
+      transition: border-color 0.2s, background 0.2s;
+      background: #fafaf9;
+    }
+    .drop-zone:hover, .drop-zone.over { border-color: #7c3aed; background: #faf5ff; }
+    .drop-zone svg { width: 28px; height: 28px; stroke: #a78bfa; fill: none; stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; margin-bottom: 0.6rem; }
+    .drop-zone p { font-size: 0.85rem; color: #78716c; }
+    .drop-zone span { color: #7c3aed; font-weight: 500; }
+    input[type="file"] { display: none; }
+
+    /* File pill */
+    .file-pill {
+      display: none;
+      align-items: center;
+      gap: 0.65rem;
+      background: #f5f3ff;
+      border: 1px solid #ddd6fe;
+      border-radius: 10px;
+      padding: 0.65rem 0.9rem;
+    }
+    .file-pill svg { width: 18px; height: 18px; stroke: #7c3aed; fill: none; stroke-width: 1.5; flex-shrink: 0; }
+    .pill-name { font-size: 0.84rem; font-weight: 500; flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .pill-size { font-size: 0.75rem; color: #a78bfa; }
+    .pill-remove { background: none; border: none; cursor: pointer; color: #c4b5fd; font-size: 1.1rem; }
+    .pill-remove:hover { color: #ef4444; }
+
+    .divider { border: none; border-top: 1px solid #f5f5f4; margin: 1.25rem 0; }
+
+    /* Row layout */
+    .row { margin-bottom: 1.1rem; }
+    .row:last-child { margin-bottom: 0; }
+    .row-label { font-size: 0.78rem; font-weight: 600; color: #78716c; margin-bottom: 0.45rem; display: flex; align-items: center; gap: 0.4rem; }
+    .row-hint { font-size: 0.72rem; color: #a8a29e; font-weight: 400; margin-left: auto; }
+    .input-field {
+      width: 100%; border: 1px solid #e7e5e4; border-radius: 8px;
+      padding: 0.55rem 0.75rem; font-family: inherit; font-size: 0.875rem;
+      color: #1c1917; background: #fafaf9; outline: none; transition: border-color 0.15s;
+    }
+    .input-field:focus { border-color: #a78bfa; background: #fff; }
+
+    /* Segmented control */
+    .seg-group { display: flex; border: 1px solid #e7e5e4; border-radius: 8px; overflow: hidden; }
+    .seg-group input[type="radio"] { display: none; }
+    .seg-group label {
+      flex: 1; text-align: center; padding: 0.5rem 0.4rem;
+      font-size: 0.78rem; font-weight: 500; color: #78716c; cursor: pointer;
+      background: #fafaf9; border-right: 1px solid #e7e5e4;
+      transition: background 0.15s, color 0.15s; user-select: none;
+    }
+    .seg-group label:last-of-type { border-right: none; }
+    .seg-group input[type="radio"]:checked + label { background: #7c3aed; color: #fff; }
+
+    /* Expiry slider */
+    .slider-row { display: flex; align-items: center; gap: 0.75rem; margin-bottom: 0.6rem; }
+    input[type="range"] {
+      flex: 1; -webkit-appearance: none; height: 4px; border-radius: 99px;
+      background: #e7e5e4; outline: none; cursor: pointer;
+    }
+    input[type="range"]::-webkit-slider-thumb {
+      -webkit-appearance: none; width: 16px; height: 16px; border-radius: 50%;
+      background: #7c3aed; cursor: pointer; box-shadow: 0 0 0 3px rgba(124,58,237,0.15);
+    }
+    .slider-val { font-size: 0.8rem; font-weight: 600; color: #7c3aed; white-space: nowrap; min-width: 54px; text-align: right; }
+    .presets { display: flex; gap: 0.35rem; flex-wrap: wrap; }
+    .preset {
+      font-size: 0.72rem; font-weight: 500; padding: 0.22rem 0.6rem;
+      border-radius: 99px; border: 1px solid #e7e5e4; background: #fafaf9;
+      color: #78716c; cursor: pointer; transition: all 0.15s;
+    }
+    .preset:hover, .preset.active { background: #7c3aed; border-color: #7c3aed; color: #fff; }
+
+    /* Upload button */
+    .upload-btn {
+      width: 100%; background: #7c3aed; color: #fff; border: none;
+      padding: 0.8rem; border-radius: 10px; font-family: inherit; font-size: 0.9rem;
+      font-weight: 600; cursor: pointer; transition: background 0.2s, opacity 0.2s;
+      position: relative; margin-top: 1.25rem;
+    }
+    .upload-btn:hover:not(:disabled) { background: #6d28d9; }
+    .upload-btn:disabled { opacity: 0.45; cursor: not-allowed; }
+    .upload-btn .btn-text { transition: opacity 0.15s; }
+    .upload-btn .spin {
+      display: none; position: absolute; top: 50%; left: 50%;
+      transform: translate(-50%,-50%); width: 18px; height: 18px;
+      border: 2.5px solid rgba(255,255,255,0.3); border-top-color: #fff;
+      border-radius: 50%; animation: spin 0.7s linear infinite;
+    }
+    .upload-btn.loading .btn-text { opacity: 0; }
+    .upload-btn.loading .spin { display: block; }
+    @keyframes spin { to { transform: translate(-50%,-50%) rotate(360deg); } }
+
+    /* Success/error banner */
+    .banner {
+      display: none; border-radius: 10px; padding: 1rem;
+      border: 1px solid; margin-top: 1rem;
+    }
+    .banner.ok { background: #f0fdf4; border-color: #bbf7d0; }
+    .banner.err { background: #fff1f2; border-color: #fecdd3; }
+    .banner-title { font-size: 0.78rem; font-weight: 600; margin-bottom: 0.3rem; }
+    .banner.ok .banner-title { color: #15803d; }
+    .banner.err .banner-title { color: #e11d48; }
+    .banner-text { font-size: 0.78rem; word-break: break-all; color: #374151; }
+    .banner-actions { display: flex; gap: 0.5rem; margin-top: 0.75rem; }
+    .action-btn {
+      font-size: 0.75rem; padding: 0.3rem 0.7rem; border-radius: 6px;
+      border: 1px solid #bbf7d0; background: #fff; color: #16a34a; font-weight: 500;
+      cursor: pointer; text-decoration: none; font-family: inherit; transition: background 0.15s;
+    }
+    .action-btn:hover { background: #f0fdf4; }
+
+    /* History */
+    .history-header {
+      display: flex; align-items: center; justify-content: space-between;
+      margin-bottom: 0.75rem;
+    }
+    .history-title { font-size: 0.78rem; font-weight: 600; color: #78716c; }
+    .clear-btn {
+      font-size: 0.72rem; color: #a8a29e; background: none; border: none;
+      cursor: pointer; font-family: inherit;
+    }
+    .clear-btn:hover { color: #ef4444; }
+
+    .history-empty { font-size: 0.82rem; color: #a8a29e; text-align: center; padding: 1rem 0; }
+
+    .hist-item {
+      display: flex; align-items: flex-start; gap: 0.65rem;
+      padding: 0.75rem 0; border-bottom: 1px solid #f5f5f4;
+    }
+    .hist-item:last-child { border-bottom: none; padding-bottom: 0; }
+    .hist-icon { font-size: 1.1rem; padding-top: 1px; flex-shrink: 0; }
+    .hist-body { flex: 1; min-width: 0; }
+    .hist-name { font-size: 0.84rem; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-bottom: 0.2rem; }
+    .hist-meta { font-size: 0.72rem; color: #a8a29e; }
+    .hist-meta .expiry { font-weight: 500; }
+    .hist-meta .expiry.ok { color: #16a34a; }
+    .hist-meta .expiry.warn { color: #d97706; }
+    .hist-meta .expiry.dead { color: #ef4444; }
+    .hist-actions { display: flex; gap: 0.3rem; align-items: center; }
+    .hist-btn {
+      font-size: 0.7rem; padding: 0.2rem 0.55rem; border-radius: 5px;
+      border: 1px solid #e7e5e4; background: #fafaf9; color: #78716c;
+      cursor: pointer; text-decoration: none; font-family: inherit;
+    }
+    .hist-btn:hover { background: #f5f3ff; border-color: #ddd6fe; color: #7c3aed; }
+
+    /* Preview */
+    .preview {
+      display: none; border-radius: 10px; overflow: hidden;
+      border: 1px solid #e7e5e4; margin-bottom: 1.25rem;
+      background: #fafaf9; position: relative;
+    }
+    .preview img, .preview video {
+      width: 100%; max-height: 240px; object-fit: contain;
+      display: block; background: #f5f5f4;
+    }
+    .preview audio { width: 100%; display: block; padding: 1rem; }
+    .preview-text {
+      padding: 0.75rem 1rem; font-size: 0.8rem; font-family: monospace;
+      color: #44403c; max-height: 160px; overflow: auto;
+      white-space: pre-wrap; word-break: break-word;
+    }
+    .preview-generic {
+      padding: 1.5rem; text-align: center; font-size: 2.5rem;
+    }
+    .preview-label {
+      position: absolute; top: 0.5rem; right: 0.5rem;
+      font-size: 0.65rem; font-weight: 600; padding: 0.15rem 0.5rem;
+      border-radius: 99px; background: rgba(0,0,0,0.55); color: #fff;
+      text-transform: uppercase; letter-spacing: 0.04em;
+    }
+
+    /* History thumbnail */
+    .hist-thumb {
+      width: 36px; height: 36px; border-radius: 6px; object-fit: cover;
+      flex-shrink: 0; background: #f5f5f4; border: 1px solid #e7e5e4;
+    }
+  </style>
+</head>
+<body>
+<div class="page">
+  <h1>Temp Upload</h1>
+  <p class="subtitle">Share files temporarily — they expire automatically</p>
+
+  <!-- Upload card -->
+  <div class="card">
+    <input type="file" id="fileInput">
+
+    <div class="drop-zone" id="dropZone">
+      <svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+      <p>Drop a file here or <span>click to browse</span></p>
+    </div>
+
+    <div class="file-pill" id="filePill">
+      <svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+      <span class="pill-name" id="pillName"></span>
+      <span class="pill-size" id="pillSize"></span>
+      <button class="pill-remove" id="removeFile">&times;</button>
+    </div>
+
+    <div class="preview" id="preview"></div>
+
+    <div id="settings" style="display:none">
+      <hr class="divider">
+
+      <div class="row">
+        <div class="row-label">Rename file <span class="row-hint">optional</span></div>
+        <input type="text" class="input-field" id="fileNameInput" placeholder="Keep original name">
+      </div>
+
+      <div class="row">
+        <div class="row-label">When someone opens the link…</div>
+        <div class="seg-group">
+          <input type="radio" name="disposition" id="d-inline" value="inline" checked>
+          <label for="d-inline">👁 Preview it</label>
+          <input type="radio" name="disposition" id="d-attachment" value="attachment">
+          <label for="d-attachment">⬇️ Download it</label>
+          <input type="radio" name="disposition" id="d-none" value="">
+          <label for="d-none">Auto</label>
+        </div>
+      </div>
+
+      <div class="row">
+        <div class="row-label">File will be available for…</div>
+        <div class="slider-row">
+          <input type="range" id="cacheSlider" min="86400" max="604800" value="86400" step="3600">
+          <span class="slider-val" id="sliderVal">1 day</span>
+        </div>
+        <div class="presets">
+          <button class="preset active" data-val="86400">1 day</button>
+          <button class="preset" data-val="172800">2 days</button>
+          <button class="preset" data-val="259200">3 days</button>
+          <button class="preset" data-val="432000">5 days</button>
+          <button class="preset" data-val="604800">1 week</button>
+        </div>
+      </div>
+    </div>
+
+    <button class="upload-btn" id="uploadBtn" disabled>
+      <span class="btn-text">Upload file</span>
+      <div class="spin"></div>
+    </button>
+
+    <div class="banner" id="banner">
+      <div class="banner-title" id="bannerTitle"></div>
+      <div class="banner-text" id="bannerText"></div>
+      <div class="banner-actions" id="bannerActions"></div>
+    </div>
+  </div>
+
+  <!-- History card -->
+  <div class="card" id="historyCard" style="display:none">
+    <div class="history-header">
+      <div class="history-title">PREVIOUSLY UPLOADED</div>
+      <button class="clear-btn" id="clearHistory">Clear all</button>
+    </div>
+    <div id="historyList"></div>
+  </div>
+</div>
+
+<script>
+  const API_URL = 'http://localhost:3000';
+  const HISTORY_KEY = 'media_uploads';
+
+  // Identity
+  let secretToken = localStorage.getItem('media_secret_token');
+  if (!secretToken) { secretToken = crypto.randomUUID(); localStorage.setItem('media_secret_token', secretToken); }
+
+  // Elements
+  const dropZone    = document.getElementById('dropZone');
+  const fileInput   = document.getElementById('fileInput');
+  const filePill    = document.getElementById('filePill');
+  const pillName    = document.getElementById('pillName');
+  const pillSize    = document.getElementById('pillSize');
+  const removeFile  = document.getElementById('removeFile');
+  const preview     = document.getElementById('preview');
+  const settings    = document.getElementById('settings');
+  const fileNameInput = document.getElementById('fileNameInput');
+  const cacheSlider = document.getElementById('cacheSlider');
+  const sliderVal   = document.getElementById('sliderVal');
+  const uploadBtn   = document.getElementById('uploadBtn');
+  const banner      = document.getElementById('banner');
+  const bannerTitle = document.getElementById('bannerTitle');
+  const bannerText  = document.getElementById('bannerText');
+  const bannerActions = document.getElementById('bannerActions');
+  const historyCard = document.getElementById('historyCard');
+  const historyList = document.getElementById('historyList');
+  const clearHistory = document.getElementById('clearHistory');
+  let currentFile = null;
+  let previewUrl = null;
+
+  // Helpers
+  function fmtDur(s) {
+    s = Number(s);
+    if (s < 3600)   return `${Math.round(s/60)} min`;
+    if (s < 86400)  return `${(s/3600).toFixed(s%3600===0?0:1).replace(/\.0$/,'')} hr`;
+    if (s < 604800) { const d = Math.round(s/86400); return `${d} day${d>1?'s':''}`; }
+    return '1 week';
+  }
+  function fmtSize(b) {
+    if (b<1024) return b+' B'; if (b<1048576) return (b/1024).toFixed(1)+' KB'; return (b/1048576).toFixed(1)+' MB';
+  }
+  function fmtExpiry(ts) {
+    const diff = ts - Date.now();
+    if (diff <= 0) return { label: 'Expired', cls: 'dead' };
+    const m = Math.floor(diff/60000);
+    const h = Math.floor(diff/3600000);
+    const d = Math.floor(diff/86400000);
+    let label;
+    if (d > 0) label = `Expires in ${d} day${d>1?'s':''}`;
+    else if (h > 0) label = `Expires in ${h} hr`;
+    else label = `Expires in ${m} min`;
+    const cls = d >= 1 ? 'ok' : h >= 1 ? 'warn' : 'warn';
+    return { label, cls };
+  }
+  function fmtDate(ts) {
+    return new Date(ts).toLocaleDateString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+  }
+  function extIcon(name) {
+    const ext = name.split('.').pop().toLowerCase();
+    if (['jpg','jpeg','png','gif','webp','svg','avif'].includes(ext)) return '🖼';
+    if (['mp4','webm','mov','avi'].includes(ext)) return '🎬';
+    if (['mp3','wav','ogg','aac'].includes(ext)) return '🎵';
+    if (['pdf'].includes(ext)) return '📄';
+    if (['zip','tar','gz','rar'].includes(ext)) return '🗜';
+    return '📎';
+  }
+
+  // Drag & drop
+  ['dragenter','dragover','dragleave','drop'].forEach(e => dropZone.addEventListener(e, ev => { ev.preventDefault(); ev.stopPropagation(); }));
+  ['dragenter','dragover'].forEach(e => dropZone.addEventListener(e, () => dropZone.classList.add('over')));
+  ['dragleave','drop'].forEach(e => dropZone.addEventListener(e, () => dropZone.classList.remove('over')));
+  dropZone.addEventListener('drop', e => handleFile(e.dataTransfer.files[0]));
+  dropZone.addEventListener('click', () => fileInput.click());
+  fileInput.addEventListener('change', function() { if (this.files[0]) handleFile(this.files[0]); });
+
+  function handleFile(file) {
+    currentFile = file;
+    pillName.textContent = file.name;
+    pillSize.textContent = fmtSize(file.size);
+    fileNameInput.value = '';
+    fileNameInput.placeholder = file.name;
+    dropZone.style.display = 'none';
+    filePill.style.display = 'flex';
+    settings.style.display = 'block';
+    uploadBtn.disabled = false;
+    banner.style.display = 'none';
+    showPreview(file);
+  }
+
+  function showPreview(file) {
+    if (previewUrl) { URL.revokeObjectURL(previewUrl); previewUrl = null; }
+    preview.innerHTML = '';
+    const type = file.type || '';
+    const ext = file.name.split('.').pop().toLowerCase();
+    previewUrl = URL.createObjectURL(file);
+
+    if (type.startsWith('image/')) {
+      preview.innerHTML = `<img src="${previewUrl}" alt="Preview"><span class="preview-label">${ext}</span>`;
+    } else if (type.startsWith('video/')) {
+      preview.innerHTML = `<video src="${previewUrl}" controls muted></video><span class="preview-label">${ext}</span>`;
+    } else if (type.startsWith('audio/')) {
+      preview.innerHTML = `<audio src="${previewUrl}" controls></audio><span class="preview-label">${ext}</span>`;
+    } else if (type.startsWith('text/') || ['json','xml','csv','md','js','ts','html','css','yml','yaml','log','env'].includes(ext)) {
+      const reader = new FileReader();
+      reader.onload = () => { preview.innerHTML = `<div class="preview-text">${reader.result.substring(0, 2000).replace(/</g,'&lt;')}</div><span class="preview-label">${ext}</span>`; };
+      reader.readAsText(file.slice(0, 2000));
+    } else {
+      preview.innerHTML = `<div class="preview-generic">${extIcon(file.name)}</div><span class="preview-label">${ext}</span>`;
+    }
+    preview.style.display = 'block';
+  }
+
+  removeFile.addEventListener('click', () => {
+    currentFile = null; fileInput.value = '';
+    if (previewUrl) { URL.revokeObjectURL(previewUrl); previewUrl = null; }
+    dropZone.style.display = 'block'; filePill.style.display = 'none';
+    preview.style.display = 'none'; preview.innerHTML = '';
+    settings.style.display = 'none'; uploadBtn.disabled = true;
+    banner.style.display = 'none';
+  });
+
+  // Slider
+  cacheSlider.addEventListener('input', () => {
+    sliderVal.textContent = fmtDur(cacheSlider.value);
+    document.querySelectorAll('.preset').forEach(b => b.classList.toggle('active', b.dataset.val == cacheSlider.value));
+  });
+  document.querySelectorAll('.preset').forEach(btn => btn.addEventListener('click', () => {
+    cacheSlider.value = btn.dataset.val;
+    sliderVal.textContent = fmtDur(btn.dataset.val);
+    document.querySelectorAll('.preset').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+  }));
+
+  // Upload
+  uploadBtn.addEventListener('click', async () => {
+    if (!currentFile) return;
+    uploadBtn.classList.add('loading'); uploadBtn.disabled = true; banner.style.display = 'none';
+    try {
+      const disposition = document.querySelector('input[name="disposition"]:checked').value;
+      const dur = Number(cacheSlider.value);
+      const filename = fileNameInput.value.trim() || currentFile.name;
+      const params = new URLSearchParams({ filename, cacheDuration: dur, secretToken });
+      if (currentFile.type) params.append('contentType', currentFile.type);
+      if (disposition) params.append('contentDisposition', disposition);
+
+      const apiRes = await fetch(`${API_URL}/temp-file-url?${params}`);
+      const data = await apiRes.json();
+      if (!apiRes.ok) throw new Error(data.error || 'Could not prepare upload');
+
+      const s3Res = await fetch(data.uploadUrl, { method: 'PUT', body: currentFile, headers: data.requiredHeaders });
+      if (!s3Res.ok) throw new Error('Upload to storage failed');
+
+      if (data.publicUrl) {
+        await fetch(`${API_URL}/upload-complete`, {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ publicUrl: data.publicUrl, secretToken }),
+        });
+      }
+
+      const finalUrl = data.publicUrl || (new URL(data.uploadUrl).origin + new URL(data.uploadUrl).pathname);
+
+      // Save to history (with optional thumbnail for images)
+      const uploads = JSON.parse(localStorage.getItem(HISTORY_KEY) || '[]');
+      const entry = { name: filename, url: finalUrl, uploadedAt: Date.now(), expiresAt: Date.now() + dur * 1000 };
+      if (currentFile && currentFile.type && currentFile.type.startsWith('image/')) {
+        try {
+          const thumb = await makeThumb(currentFile, 72);
+          entry.thumb = thumb;
+        } catch(_) {}
+      }
+      uploads.unshift(entry);
+      localStorage.setItem(HISTORY_KEY, JSON.stringify(uploads.slice(0, 20))); // keep last 20
+      renderHistory();
+
+      showBanner('ok', '✓ File uploaded!', finalUrl);
+    } catch (err) {
+      showBanner('err', '✕ Something went wrong', err.message);
+    } finally {
+      uploadBtn.classList.remove('loading'); uploadBtn.disabled = false;
+    }
+  });
+
+  function showBanner(type, title, text) {
+    banner.className = `banner ${type}`;
+    bannerTitle.textContent = title;
+    bannerText.textContent = text;
+    bannerActions.innerHTML = '';
+    if (type === 'ok') {
+      const open = document.createElement('a');
+      open.href = text; open.target = '_blank'; open.className = 'action-btn'; open.textContent = 'Open file';
+      const copy = document.createElement('button');
+      copy.className = 'action-btn'; copy.textContent = 'Copy link';
+      copy.onclick = () => { navigator.clipboard.writeText(text); copy.textContent = 'Copied!'; setTimeout(() => copy.textContent = 'Copy link', 2000); };
+      bannerActions.append(open, copy);
+    }
+    banner.style.display = 'block';
+  }
+
+  // Thumbnail generator
+  function makeThumb(file, size) {
+    return new Promise((resolve, reject) => {
+      const img = new Image();
+      img.onload = () => {
+        const c = document.createElement('canvas');
+        const s = Math.min(size / img.width, size / img.height);
+        c.width = img.width * s; c.height = img.height * s;
+        c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+        URL.revokeObjectURL(img.src);
+        resolve(c.toDataURL('image/jpeg', 0.6));
+      };
+      img.onerror = reject;
+      img.src = URL.createObjectURL(file);
+    });
+  }
+
+  // History
+  clearHistory.addEventListener('click', () => {
+    localStorage.removeItem(HISTORY_KEY); renderHistory();
+  });
+
+  function renderHistory() {
+    const uploads = JSON.parse(localStorage.getItem(HISTORY_KEY) || '[]');
+    if (uploads.length === 0) { historyCard.style.display = 'none'; return; }
+    historyCard.style.display = 'block';
+    historyList.innerHTML = '';
+    uploads.forEach((item, i) => {
+      const { label, cls } = fmtExpiry(item.expiresAt);
+      const el = document.createElement('div');
+      el.className = 'hist-item';
+      const iconHtml = item.thumb
+        ? `<img class="hist-thumb" src="${item.thumb}" alt="">`
+        : `<div class="hist-icon">${extIcon(item.name)}</div>`;
+      el.innerHTML = `
+        ${iconHtml}
+        <div class="hist-body">
+          <div class="hist-name">${item.name}</div>
+          <div class="hist-meta">
+            <span class="expiry ${cls}">${label}</span>
+            &nbsp;·&nbsp; Uploaded ${fmtDate(item.uploadedAt)}
+          </div>
+        </div>
+        <div class="hist-actions">
+          <a class="hist-btn" href="${item.url}" target="_blank">Open</a>
+          <button class="hist-btn" data-i="${i}">Copy</button>
+        </div>`;
+      el.querySelector('[data-i]').addEventListener('click', function() {
+        navigator.clipboard.writeText(item.url);
+        this.textContent = 'Copied!'; setTimeout(() => this.textContent = 'Copy', 2000);
+      });
+      historyList.appendChild(el);
+    });
+  }
+
+  renderHistory();
+</script>
+</body>
+</html>

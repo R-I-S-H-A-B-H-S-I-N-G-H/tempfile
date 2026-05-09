@@ -1,0 +1,34 @@
+{
+  "name": "es-hono-pet-store",
+  "version": "0.1.1",
+  "main": "src/index.ts",
+  "type": "module",
+  "private": true,
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/BunnyWay/es-hono-pet-store.git"
+  },
+  "keywords": [
+    "github",
+    "bunny"
+  ],
+  "author": "Bunny Devs",
+  "license": "MIT",
+  "scripts": {
+    "lint": "deno lint",
+    "test": "deno test -A src/**/*.test.ts",
+    "check": "deno check src/main.ts",
+    "build": "mkdir -p dist && deno run -A build.mjs",
+    "dev": "deno run -A src/main.ts",
+    "release": "echo \"No release\"",
+    "ci:version": "pnpm changeset version",
+    "ci:publish": "./scripts/publish.sh"
+  },
+  "devDependencies": {
+    "@changesets/cli": "^2.26.2",
+    "esbuild": "^0.25.3"
+  },
+  "dependencies": {
+    "hono": "^4.12.18"
+  }
+}

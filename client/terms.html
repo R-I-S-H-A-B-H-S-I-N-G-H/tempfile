@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="robots" content="index, follow">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Terms of Service for Tempfile - Usage guidelines and agreements.">
+    <title>Terms of Service | Tempfile</title>
+    <link href="https://fonts.googleapis.com/css2?family=Caveat:wght@400;700&family=Inter:wght@400;700;800&display=swap" rel="stylesheet">
+    <style>
+        :root { --paper-white: #faf8f5; --ink-black: #2d2d2d; }
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Inter', sans-serif; }
+        body { background-color: var(--paper-white); color: var(--ink-black); }
+        .app-container { display: flex; flex-direction: column; min-height: 100vh; padding-bottom: 60px; }
+        .site-header { padding: 32px 40px 8px; display: flex; align-items: center; gap: 14px; text-decoration: none; }
+        .site-header h1 { font-family: 'Caveat', cursive; font-size: 2.4rem; font-weight: 700; color: var(--ink-black); }
+        .site-subtitle { font-size: 0.72rem; color: #aaa; letter-spacing: 0.5px; margin-left: 2px; }
+        .header-scribble { width: 44px; height: 44px; flex-shrink: 0; }
+        .content-section { max-width: 800px; margin: 40px auto; padding: 0 40px; }
+        .content-section h2 { font-family: 'Caveat', cursive; font-size: 2rem; margin-bottom: 20px; }
+        .content-section h3 { font-family: 'Inter', sans-serif; font-size: 1.2rem; margin-top: 24px; margin-bottom: 12px; }
+        .content-section p, .content-section ul { font-size: 1rem; line-height: 1.6; margin-bottom: 16px; color: #444; }
+        .content-section ul { margin-left: 20px; }
+        .back-link { display: inline-block; margin-top: 20px; color: var(--ink-black); font-weight: 600; text-decoration: none; border-bottom: 1px solid var(--ink-black); }
+    </style>
+</head>
+<body>
+    <main class="app-container">
+        <a href="/" class="site-header">
+            <svg class="header-scribble"></svg>
+            <div>
+                <h1>tempfile</h1>
+                <div class="site-subtitle">Share files temporarily — they expire automatically</div>
+            </div>
+        </a>
+        <section class="content-section">
+            <h2>Terms of Service</h2>
+            <p>By accessing or using Tempfile, you agree to be bound by these Terms of Service. If you disagree with any part of the terms, you may not access the service.</p>
+            
+            <h3>1. Acceptable Use</h3>
+            <p>You agree not to use Tempfile to upload, share, or transmit any content that is illegal, harmful, threatening, abusive, harassing, defamatory, vulgar, obscene, or otherwise objectionable. You are solely responsible for the content you upload.</p>
+            
+            <h3>2. Service Availability</h3>
+            <p>We strive to provide a reliable service, but Tempfile is provided on an "as is" and "as available" basis. We do not guarantee that the service will be uninterrupted, timely, secure, or error-free. We reserve the right to modify or discontinue the service at any time without notice.</p>
+            
+            <h3>3. File Expiration</h3>
+            <p>Tempfile is designed for ephemeral file sharing. All uploaded files are subject to automatic deletion after their specified expiration period. We are not responsible for any data loss that occurs as a result of our standard deletion processes.</p>
+            
+            <h3>4. Limitation of Liability</h3>
+            <p>In no event shall Tempfile be liable for any indirect, incidental, special, consequential or punitive damages, including without limitation, loss of profits, data, use, goodwill, or other intangible losses, resulting from your access to or use of or inability to access or use the service.</p>
+
+            <a href="/" class="back-link">← Back to Home</a>
+        </section>
+    </main>
+    <script src="https://unpkg.com/roughjs@4.5.2/bundled/rough.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const rc = rough.svg(document.querySelector('.header-scribble'));
+            document.querySelector('.header-scribble').appendChild(rc.circle(22, 22, 38, { roughness: 2, strokeWidth: 2, stroke: '#2d2d2d' }));
+        });
+    </script>
+</body>
+</html>

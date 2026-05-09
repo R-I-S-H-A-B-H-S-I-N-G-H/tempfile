@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="robots" content="index, follow">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="About Tempfile - Clean, secure, and minimal ephemeral file sharing designed for the modern web.">
+    <title>About | Tempfile</title>
+    <link href="https://fonts.googleapis.com/css2?family=Caveat:wght@400;700&family=Inter:wght@400;700;800&display=swap" rel="stylesheet">
+    <style>
+        :root { --paper-white: #faf8f5; --ink-black: #2d2d2d; }
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Inter', sans-serif; }
+        body { background-color: var(--paper-white); color: var(--ink-black); }
+        .app-container { display: flex; flex-direction: column; min-height: 100vh; padding-bottom: 60px; }
+        .site-header { padding: 32px 40px 8px; display: flex; align-items: center; gap: 14px; text-decoration: none; }
+        .site-header h1 { font-family: 'Caveat', cursive; font-size: 2.4rem; font-weight: 700; color: var(--ink-black); }
+        .site-subtitle { font-size: 0.72rem; color: #aaa; letter-spacing: 0.5px; margin-left: 2px; }
+        .header-scribble { width: 44px; height: 44px; flex-shrink: 0; }
+        .content-section { max-width: 800px; margin: 40px auto; padding: 0 40px; }
+        .content-section h2 { font-family: 'Caveat', cursive; font-size: 2rem; margin-bottom: 20px; }
+        .content-section p { font-size: 1rem; line-height: 1.6; margin-bottom: 16px; color: #444; }
+        .back-link { display: inline-block; margin-top: 20px; color: var(--ink-black); font-weight: 600; text-decoration: none; border-bottom: 1px solid var(--ink-black); }
+    </style>
+</head>
+<body>
+    <main class="app-container">
+        <a href="/" class="site-header">
+            <svg class="header-scribble"></svg>
+            <div>
+                <h1>tempfile</h1>
+                <div class="site-subtitle">Share files temporarily — they expire automatically</div>
+            </div>
+        </a>
+        <section class="content-section">
+            <h2>About Us</h2>
+            <p><strong>Tempfile</strong> is built with a simple motive: to provide a clean, secure, and minimal way to share files temporarily. We share so many documents, images, and videos every day that only need to be accessed for a short time. Keeping them indefinitely wastes storage and increases privacy risks.</p>
+            <p>By automatically expiring uploads after a specified duration—from a single day up to one week—Tempfile ensures your digital footprint remains small. There are no accounts to create and no tracking involved. It's just fast, ephemeral file sharing designed for the modern web.</p>
+            <a href="/" class="back-link">← Back to Home</a>
+        </section>
+    </main>
+    <script src="https://unpkg.com/roughjs@4.5.2/bundled/rough.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const rc = rough.svg(document.querySelector('.header-scribble'));
+            document.querySelector('.header-scribble').appendChild(rc.circle(22, 22, 38, { roughness: 2, strokeWidth: 2, stroke: '#2d2d2d' }));
+        });
+    </script>
+</body>
+</html>

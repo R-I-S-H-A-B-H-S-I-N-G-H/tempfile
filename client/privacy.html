@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="robots" content="index, follow">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Privacy Policy for Tempfile - Learn how we handle your data and protect your privacy.">
+    <title>Privacy Policy | Tempfile</title>
+    <link href="https://fonts.googleapis.com/css2?family=Caveat:wght@400;700&family=Inter:wght@400;700;800&display=swap" rel="stylesheet">
+    <style>
+        :root { --paper-white: #faf8f5; --ink-black: #2d2d2d; }
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Inter', sans-serif; }
+        body { background-color: var(--paper-white); color: var(--ink-black); }
+        .app-container { display: flex; flex-direction: column; min-height: 100vh; padding-bottom: 60px; }
+        .site-header { padding: 32px 40px 8px; display: flex; align-items: center; gap: 14px; text-decoration: none; }
+        .site-header h1 { font-family: 'Caveat', cursive; font-size: 2.4rem; font-weight: 700; color: var(--ink-black); }
+        .site-subtitle { font-size: 0.72rem; color: #aaa; letter-spacing: 0.5px; margin-left: 2px; }
+        .header-scribble { width: 44px; height: 44px; flex-shrink: 0; }
+        .content-section { max-width: 800px; margin: 40px auto; padding: 0 40px; }
+        .content-section h2 { font-family: 'Caveat', cursive; font-size: 2rem; margin-bottom: 20px; }
+        .content-section h3 { font-family: 'Inter', sans-serif; font-size: 1.2rem; margin-top: 24px; margin-bottom: 12px; }
+        .content-section p, .content-section ul { font-size: 1rem; line-height: 1.6; margin-bottom: 16px; color: #444; }
+        .content-section ul { margin-left: 20px; }
+        .back-link { display: inline-block; margin-top: 20px; color: var(--ink-black); font-weight: 600; text-decoration: none; border-bottom: 1px solid var(--ink-black); }
+    </style>
+</head>
+<body>
+    <main class="app-container">
+        <a href="/" class="site-header">
+            <svg class="header-scribble"></svg>
+            <div>
+                <h1>tempfile</h1>
+                <div class="site-subtitle">Share files temporarily — they expire automatically</div>
+            </div>
+        </a>
+        <section class="content-section">
+            <h2>Privacy Policy</h2>
+            <p>At Tempfile, your privacy is our priority. We are committed to protecting your personal information and your right to privacy.</p>
+            
+            <h3>1. Information We Collect</h3>
+            <p>We only collect the files you explicitly upload to our service. We do not require you to create an account, and we do not collect personal identifiers like your name or email address.</p>
+            
+            <h3>2. How We Use Your Information</h3>
+            <p>The files you upload are only used to facilitate sharing via the unique link generated for you. We do not view, mine, or sell the contents of your files.</p>
+            
+            <h3>3. Data Retention and Deletion</h3>
+            <p>All files uploaded to Tempfile are temporary. They are automatically and permanently deleted from our servers once their expiration time is reached (ranging from 1 day to 1 week, depending on your selection). You may also have options to delete files earlier if specified.</p>
+            
+            <h3>4. Tracking and Cookies</h3>
+            <p>We strive to keep Tempfile as lightweight and privacy-friendly as possible. We do not use intrusive tracking cookies or third-party analytics that compromise your privacy.</p>
+
+            <a href="/" class="back-link">← Back to Home</a>
+        </section>
+    </main>
+    <script src="https://unpkg.com/roughjs@4.5.2/bundled/rough.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const rc = rough.svg(document.querySelector('.header-scribble'));
+            document.querySelector('.header-scribble').appendChild(rc.circle(22, 22, 38, { roughness: 2, strokeWidth: 2, stroke: '#2d2d2d' }));
+        });
+    </script>
+</body>
+</html>

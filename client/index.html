@@ -1,557 +1,1546 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Temp Upload</title>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
-  <style>
-    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>tempfile | Minimal File Sharing</title>
+    <link href="https://fonts.googleapis.com/css2?family=Caveat:wght@400;700&family=Inter:wght@400;700;800&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --paper-white: #faf8f5;
+            --ink-black: #2d2d2d;
+        }
 
-    body {
-      font-family: 'Inter', sans-serif;
-      background: #f5f5f4;
-      color: #1c1917;
-      min-height: 100vh;
-      display: flex;
-      justify-content: center;
-      padding: 2rem 1.5rem;
-    }
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+        }
 
-    .page { width: 100%; max-width: 460px; }
+        body {
+            background-color: var(--paper-white);
+            color: var(--ink-black);
+            overflow-x: hidden;
+        }
 
-    h1 { font-size: 1.15rem; font-weight: 600; margin-bottom: 0.2rem; }
-    .subtitle { font-size: 0.8rem; color: #a8a29e; margin-bottom: 1.5rem; }
+        .app-container {
+            display: flex;
+            flex-direction: column;
+            min-height: 100vh;
+        }
 
-    .card {
-      background: #fff;
-      border: 1px solid #e7e5e4;
-      border-radius: 16px;
-      padding: 1.5rem;
-      box-shadow: 0 1px 3px rgba(0,0,0,0.05);
-      margin-bottom: 1.25rem;
-    }
+        /* --- HEADER --- */
+        .site-header {
+            padding: 32px 40px 8px;
+            display: flex;
+            align-items: center;
+            gap: 14px;
+        }
 
-    /* Drop Zone */
-    .drop-zone {
-      border: 1.5px dashed #d6d3d1;
-      border-radius: 10px;
-      padding: 2rem 1rem;
-      text-align: center;
-      cursor: pointer;
-      transition: border-color 0.2s, background 0.2s;
-      background: #fafaf9;
-    }
-    .drop-zone:hover, .drop-zone.over { border-color: #7c3aed; background: #faf5ff; }
-    .drop-zone svg { width: 28px; height: 28px; stroke: #a78bfa; fill: none; stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; margin-bottom: 0.6rem; }
-    .drop-zone p { font-size: 0.85rem; color: #78716c; }
-    .drop-zone span { color: #7c3aed; font-weight: 500; }
-    input[type="file"] { display: none; }
+        .site-header h1 {
+            font-family: 'Caveat', cursive;
+            font-size: 2.4rem;
+            font-weight: 700;
+            color: var(--ink-black);
+        }
 
-    /* File pill */
-    .file-pill {
-      display: none;
-      align-items: center;
-      gap: 0.65rem;
-      background: #f5f3ff;
-      border: 1px solid #ddd6fe;
-      border-radius: 10px;
-      padding: 0.65rem 0.9rem;
-    }
-    .file-pill svg { width: 18px; height: 18px; stroke: #7c3aed; fill: none; stroke-width: 1.5; flex-shrink: 0; }
-    .pill-name { font-size: 0.84rem; font-weight: 500; flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-    .pill-size { font-size: 0.75rem; color: #a78bfa; }
-    .pill-remove { background: none; border: none; cursor: pointer; color: #c4b5fd; font-size: 1.1rem; }
-    .pill-remove:hover { color: #ef4444; }
+        .site-subtitle {
+            font-size: 0.72rem;
+            color: #aaa;
+            letter-spacing: 0.5px;
+            margin-left: 2px;
+        }
 
-    .divider { border: none; border-top: 1px solid #f5f5f4; margin: 1.25rem 0; }
+        .header-scribble {
+            width: 44px;
+            height: 44px;
+            flex-shrink: 0;
+        }
 
-    /* Row layout */
-    .row { margin-bottom: 1.1rem; }
-    .row:last-child { margin-bottom: 0; }
-    .row-label { font-size: 0.78rem; font-weight: 600; color: #78716c; margin-bottom: 0.45rem; display: flex; align-items: center; gap: 0.4rem; }
-    .row-hint { font-size: 0.72rem; color: #a8a29e; font-weight: 400; margin-left: auto; }
-    .input-field {
-      width: 100%; border: 1px solid #e7e5e4; border-radius: 8px;
-      padding: 0.55rem 0.75rem; font-family: inherit; font-size: 0.875rem;
-      color: #1c1917; background: #fafaf9; outline: none; transition: border-color 0.15s;
-    }
-    .input-field:focus { border-color: #a78bfa; background: #fff; }
+        /* --- UPLOAD DRAWER --- */
+        .upload-row {
+            position: fixed;
+            top: 0; left: 0;
+            width: 100%; height: 55vh;
+            background-color: var(--paper-white);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            z-index: 1000;
+            transform: translateY(-100%);
+            transition: transform 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+        }
 
-    /* Segmented control */
-    .seg-group { display: flex; border: 1px solid #e7e5e4; border-radius: 8px; overflow: hidden; }
-    .seg-group input[type="radio"] { display: none; }
-    .seg-group label {
-      flex: 1; text-align: center; padding: 0.5rem 0.4rem;
-      font-size: 0.78rem; font-weight: 500; color: #78716c; cursor: pointer;
-      background: #fafaf9; border-right: 1px solid #e7e5e4;
-      transition: background 0.15s, color 0.15s; user-select: none;
-    }
-    .seg-group label:last-of-type { border-right: none; }
-    .seg-group input[type="radio"]:checked + label { background: #7c3aed; color: #fff; }
+        .upload-row.active {
+            transform: translateY(0);
+        }
 
-    /* Expiry slider */
-    .slider-row { display: flex; align-items: center; gap: 0.75rem; margin-bottom: 0.6rem; }
-    input[type="range"] {
-      flex: 1; -webkit-appearance: none; height: 4px; border-radius: 99px;
-      background: #e7e5e4; outline: none; cursor: pointer;
-    }
-    input[type="range"]::-webkit-slider-thumb {
-      -webkit-appearance: none; width: 16px; height: 16px; border-radius: 50%;
-      background: #7c3aed; cursor: pointer; box-shadow: 0 0 0 3px rgba(124,58,237,0.15);
-    }
-    .slider-val { font-size: 0.8rem; font-weight: 600; color: #7c3aed; white-space: nowrap; min-width: 54px; text-align: right; }
-    .presets { display: flex; gap: 0.35rem; flex-wrap: wrap; }
-    .preset {
-      font-size: 0.72rem; font-weight: 500; padding: 0.22rem 0.6rem;
-      border-radius: 99px; border: 1px solid #e7e5e4; background: #fafaf9;
-      color: #78716c; cursor: pointer; transition: all 0.15s;
-    }
-    .preset:hover, .preset.active { background: #7c3aed; border-color: #7c3aed; color: #fff; }
+        .upload-scrim {
+            position: fixed;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            background: rgba(0,0,0,0.18);
+            z-index: 999;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.4s;
+        }
 
-    /* Upload button */
-    .upload-btn {
-      width: 100%; background: #7c3aed; color: #fff; border: none;
-      padding: 0.8rem; border-radius: 10px; font-family: inherit; font-size: 0.9rem;
-      font-weight: 600; cursor: pointer; transition: background 0.2s, opacity 0.2s;
-      position: relative; margin-top: 1.25rem;
-    }
-    .upload-btn:hover:not(:disabled) { background: #6d28d9; }
-    .upload-btn:disabled { opacity: 0.45; cursor: not-allowed; }
-    .upload-btn .btn-text { transition: opacity 0.15s; }
-    .upload-btn .spin {
-      display: none; position: absolute; top: 50%; left: 50%;
-      transform: translate(-50%,-50%); width: 18px; height: 18px;
-      border: 2.5px solid rgba(255,255,255,0.3); border-top-color: #fff;
-      border-radius: 50%; animation: spin 0.7s linear infinite;
-    }
-    .upload-btn.loading .btn-text { opacity: 0; }
-    .upload-btn.loading .spin { display: block; }
-    @keyframes spin { to { transform: translate(-50%,-50%) rotate(360deg); } }
+        .upload-scrim.active {
+            opacity: 1;
+            pointer-events: all;
+        }
 
-    /* Success/error banner */
-    .banner {
-      display: none; border-radius: 10px; padding: 1rem;
-      border: 1px solid; margin-top: 1rem;
-    }
-    .banner.ok { background: #f0fdf4; border-color: #bbf7d0; }
-    .banner.err { background: #fff1f2; border-color: #fecdd3; }
-    .banner-title { font-size: 0.78rem; font-weight: 600; margin-bottom: 0.3rem; }
-    .banner.ok .banner-title { color: #15803d; }
-    .banner.err .banner-title { color: #e11d48; }
-    .banner-text { font-size: 0.78rem; word-break: break-all; color: #374151; }
-    .banner-actions { display: flex; gap: 0.5rem; margin-top: 0.75rem; }
-    .action-btn {
-      font-size: 0.75rem; padding: 0.3rem 0.7rem; border-radius: 6px;
-      border: 1px solid #bbf7d0; background: #fff; color: #16a34a; font-weight: 500;
-      cursor: pointer; text-decoration: none; font-family: inherit; transition: background 0.15s;
-    }
-    .action-btn:hover { background: #f0fdf4; }
+        .paper-texture::before {
+            content: "";
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            filter: url(#grainy);
+            opacity: 0.12;
+            pointer-events: none;
+            z-index: 1;
+        }
 
-    /* History */
-    .history-header {
-      display: flex; align-items: center; justify-content: space-between;
-      margin-bottom: 0.75rem;
-    }
-    .history-title { font-size: 0.78rem; font-weight: 600; color: #78716c; }
-    .clear-btn {
-      font-size: 0.72rem; color: #a8a29e; background: none; border: none;
-      cursor: pointer; font-family: inherit;
-    }
-    .clear-btn:hover { color: #ef4444; }
+        .upload-area {
+            position: relative;
+            z-index: 2;
+            width: 100%;
+            max-width: 500px;
+            height: 220px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: background 0.2s ease;
+        }
 
-    .history-empty { font-size: 0.82rem; color: #a8a29e; text-align: center; padding: 1rem 0; }
+        .upload-area:hover {
+            background: rgba(0, 0, 0, 0.02);
+        }
 
-    .hist-item {
-      display: flex; align-items: flex-start; gap: 0.65rem;
-      padding: 0.75rem 0; border-bottom: 1px solid #f5f5f4;
-    }
-    .hist-item:last-child { border-bottom: none; padding-bottom: 0; }
-    .hist-icon { font-size: 1.1rem; padding-top: 1px; flex-shrink: 0; }
-    .hist-body { flex: 1; min-width: 0; }
-    .hist-name { font-size: 0.84rem; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-bottom: 0.2rem; }
-    .hist-meta { font-size: 0.72rem; color: #a8a29e; }
-    .hist-meta .expiry { font-weight: 500; }
-    .hist-meta .expiry.ok { color: #16a34a; }
-    .hist-meta .expiry.warn { color: #d97706; }
-    .hist-meta .expiry.dead { color: #ef4444; }
-    .hist-actions { display: flex; gap: 0.3rem; align-items: center; }
-    .hist-btn {
-      font-size: 0.7rem; padding: 0.2rem 0.55rem; border-radius: 5px;
-      border: 1px solid #e7e5e4; background: #fafaf9; color: #78716c;
-      cursor: pointer; text-decoration: none; font-family: inherit;
-    }
-    .hist-btn:hover { background: #f5f3ff; border-color: #ddd6fe; color: #7c3aed; }
+        .upload-area p {
+            font-family: 'Caveat', cursive;
+            font-weight: 700;
+            font-size: 1.5rem;
+            margin-top: 10px;
+            color: var(--ink-black);
+        }
 
-    /* Preview */
-    .preview {
-      display: none; border-radius: 10px; overflow: hidden;
-      border: 1px solid #e7e5e4; margin-bottom: 1.25rem;
-      background: #fafaf9; position: relative;
-    }
-    .preview img, .preview video {
-      width: 100%; max-height: 240px; object-fit: contain;
-      display: block; background: #f5f5f4;
-    }
-    .preview audio { width: 100%; display: block; padding: 1rem; }
-    .preview-text {
-      padding: 0.75rem 1rem; font-size: 0.8rem; font-family: monospace;
-      color: #44403c; max-height: 160px; overflow: auto;
-      white-space: pre-wrap; word-break: break-word;
-    }
-    .preview-generic {
-      padding: 1.5rem; text-align: center; font-size: 2.5rem;
-    }
-    .preview-label {
-      position: absolute; top: 0.5rem; right: 0.5rem;
-      font-size: 0.65rem; font-weight: 600; padding: 0.15rem 0.5rem;
-      border-radius: 99px; background: rgba(0,0,0,0.55); color: #fff;
-      text-transform: uppercase; letter-spacing: 0.04em;
-    }
+        /* --- CARD GRID --- */
+        .grid-row {
+            flex-grow: 1;
+            padding: 20px 40px 60px;
+        }
 
-    /* History thumbnail */
-    .hist-thumb {
-      width: 36px; height: 36px; border-radius: 6px; object-fit: cover;
-      flex-shrink: 0; background: #f5f5f4; border: 1px solid #e7e5e4;
-    }
-  </style>
+        .card-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+            gap: 50px;
+            max-width: 1100px;
+            margin: 0 auto;
+        }
+
+        /* --- CARD WRAPPER (contains shadow SVG + card) --- */
+        .card-wrapper {
+            position: relative;
+            height: 300px;
+            cursor: default;
+        }
+
+        .card-wrapper:hover .card-body {
+            transform: translate(-3px, -3px);
+        }
+
+        /* Entrance animation */
+        @keyframes cardIn {
+            from { opacity: 0; transform: translateY(12px) scale(0.96); }
+            to { opacity: 1; transform: translateY(0) scale(1); }
+        }
+
+        .card-wrapper {
+            animation: cardIn 0.35s cubic-bezier(0.16, 1, 0.3, 1) both;
+        }
+
+        /* Shadow layer — sits behind the card */
+        .card-shadow-svg {
+            position: absolute;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            pointer-events: none;
+            overflow: visible;
+        }
+
+        /* Card body — sits on top */
+        .card-body {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            background: white;
+            transition: transform 0.15s cubic-bezier(0.17, 0.67, 0.83, 0.67);
+            z-index: 2;
+        }
+
+        /* Card border SVG overlay on top of card body */
+        .card-border-svg {
+            position: absolute;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            pointer-events: none;
+            z-index: 5;
+        }
+
+        .file-preview {
+            flex-grow: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            z-index: 3;
+        }
+
+        .file-type-label {
+            font-family: 'Caveat', cursive;
+            font-size: 1.1rem;
+            font-weight: 700;
+            margin-top: 6px;
+            text-transform: uppercase;
+            color: var(--ink-black);
+        }
+
+        .file-name-label {
+            font-size: 0.65rem;
+            font-weight: 500;
+            color: #888;
+            margin-top: 2px;
+            max-width: 90%;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            text-align: center;
+        }
+
+        /* TTL Badge */
+        .ttl-badge {
+            position: absolute;
+            top: 6px;
+            right: 6px;
+            font-family: 'Inter', sans-serif;
+            font-size: 0.58rem;
+            font-weight: 700;
+            letter-spacing: 0.3px;
+            padding: 3px 7px;
+            z-index: 20;
+            color: white;
+            pointer-events: none;
+        }
+
+        .ttl-badge.ttl-ok { background: #00b894; }
+        .ttl-badge.ttl-warn { background: #fdcb6e; color: #2d2d2d; }
+        .ttl-badge.ttl-danger { background: #e17055; }
+        .ttl-badge.ttl-dead { background: #636e72; }
+
+        /* Empty state */
+        .empty-state {
+            grid-column: 2 / -1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 60px 20px;
+            color: #ccc;
+        }
+
+        .empty-state-text {
+            font-family: 'Caveat', cursive;
+            font-size: 1.3rem;
+            color: #bbb;
+            margin-top: 12px;
+        }
+
+        .empty-state svg {
+            width: 60px;
+            height: 60px;
+        }
+
+        /* Toast */
+        .toast {
+            position: fixed;
+            bottom: 28px;
+            left: 50%;
+            transform: translateX(-50%) translateY(80px);
+            background: var(--ink-black);
+            color: white;
+            padding: 10px 24px;
+            font-size: 0.78rem;
+            font-weight: 600;
+            z-index: 3000;
+            opacity: 0;
+            transition: transform 0.35s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.35s;
+            pointer-events: none;
+            font-family: 'Inter', sans-serif;
+        }
+
+        .toast.show {
+            transform: translateX(-50%) translateY(0);
+            opacity: 1;
+        }
+
+        /* Modal animation */
+        .modal-overlay {
+            transition: opacity 0.25s;
+            opacity: 0;
+        }
+
+        .modal-overlay.active {
+            opacity: 1;
+        }
+
+        .modal-card {
+            transform: translateY(16px) scale(0.97);
+            transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        .modal-overlay.active .modal-card {
+            transform: translateY(0) scale(1);
+        }
+
+        /* Clickable card */
+        .card-wrapper:not(.upload-card)[data-url] {
+            cursor: pointer;
+        }
+
+        .card-wrapper:not(.upload-card)[data-url]:hover .file-name-label {
+            color: var(--ink-black);
+            text-decoration: underline;
+        }
+
+        /* File size */
+        .file-size-label {
+            font-size: 0.58rem;
+            color: #bbb;
+            margin-top: 1px;
+        }
+
+        .rough-icon {
+            width: 80px;
+            height: 80px;
+        }
+
+        /* --- Upload card special styles --- */
+        .upload-card .card-body {
+            background: transparent;
+        }
+
+        .upload-card .file-preview {
+            height: 100%;
+        }
+
+        .upload-card {
+            cursor: pointer;
+        }
+
+        .upload-card:hover .card-body {
+            transform: translateY(-2px);
+        }
+
+        .upload-label {
+            font-family: 'Caveat', cursive;
+            font-size: 1.3rem;
+            font-weight: 700;
+            margin-top: 8px;
+            color: var(--ink-black);
+        }
+
+        .upload-sublabel {
+            font-size: 0.6rem;
+            color: #aaa;
+            margin-top: 3px;
+            letter-spacing: 0.5px;
+        }
+
+        .rough-plus {
+            width: 46px;
+            height: 46px;
+        }
+
+        /* --- PROGRESS BAR --- */
+        .progress-container {
+            width: 80%;
+            height: 18px;
+            margin-top: 10px;
+            position: relative;
+        }
+
+        .progress-svg {
+            width: 100%;
+            height: 100%;
+            overflow: visible;
+        }
+
+        .progress-label {
+            font-family: 'Caveat', cursive;
+            font-size: 0.85rem;
+            font-weight: 700;
+            margin-top: 4px;
+            color: var(--ink-black);
+        }
+
+        /* --- BUTTON --- */
+        .copy-button {
+            position: relative;
+            background: transparent;
+            color: white;
+            border: none;
+            padding: 16px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            font-size: 0.7rem;
+            cursor: pointer;
+            width: 100%;
+            z-index: 4;
+            transition: opacity 0.15s;
+            font-family: 'Inter', sans-serif;
+        }
+
+        .copy-button:hover {
+            opacity: 0.88;
+        }
+
+        .btn-label {
+            position: relative;
+            z-index: 3;
+        }
+
+        .btn-bg-svg {
+            position: absolute;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            pointer-events: none;
+            z-index: 1;
+        }
+
+        /* Hidden input */
+        #fileInput { display: none; }
+
+        .modal-overlay {
+            position: fixed;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            background: rgba(0,0,0,0.25);
+            z-index: 2000;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .modal-overlay.active {
+            display: flex;
+        }
+
+        .modal-card {
+            background: white;
+            width: 100%;
+            max-width: 420px;
+            position: relative;
+            padding: 32px 28px 24px;
+        }
+
+        .modal-border-svg {
+            position: absolute;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            pointer-events: none;
+            z-index: 1;
+            overflow: visible;
+        }
+
+        .modal-content {
+            position: relative;
+            z-index: 2;
+        }
+
+        .modal-title {
+            font-family: 'Caveat', cursive;
+            font-size: 1.6rem;
+            font-weight: 700;
+            margin-bottom: 4px;
+        }
+
+        .modal-filename {
+            font-size: 0.78rem;
+            color: #888;
+            margin-bottom: 20px;
+            word-break: break-all;
+        }
+
+        .setting-row {
+            margin-bottom: 18px;
+        }
+
+        .setting-label {
+            font-size: 0.75rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: #666;
+            margin-bottom: 8px;
+        }
+
+        .setting-input {
+            width: 100%;
+            border: 1.5px solid #ddd;
+            border-radius: 0;
+            padding: 10px 12px;
+            font-family: 'Inter', sans-serif;
+            font-size: 0.85rem;
+            color: var(--ink-black);
+            background: #faf8f5;
+            outline: none;
+            transition: border-color 0.15s;
+        }
+
+        .setting-input:focus {
+            border-color: #a29bfe;
+        }
+
+        .seg-buttons {
+            display: flex;
+            gap: 0;
+        }
+
+        .seg-btn {
+            flex: 1;
+            padding: 9px 6px;
+            border: 1.5px solid #ddd;
+            background: #faf8f5;
+            font-family: 'Inter', sans-serif;
+            font-size: 0.72rem;
+            font-weight: 600;
+            color: #888;
+            cursor: pointer;
+            transition: all 0.15s;
+            text-align: center;
+        }
+
+        .seg-btn + .seg-btn {
+            border-left: none;
+        }
+
+        .seg-btn.active {
+            background: var(--ink-black);
+            border-color: var(--ink-black);
+            color: white;
+        }
+
+        .expiry-presets {
+            display: flex;
+            gap: 6px;
+            flex-wrap: wrap;
+        }
+
+        .expiry-chip {
+            padding: 6px 14px;
+            border: 1.5px solid #ddd;
+            background: #faf8f5;
+            font-family: 'Inter', sans-serif;
+            font-size: 0.72rem;
+            font-weight: 600;
+            color: #888;
+            cursor: pointer;
+            transition: all 0.15s;
+        }
+
+        .expiry-chip.active {
+            background: var(--ink-black);
+            border-color: var(--ink-black);
+            color: white;
+        }
+
+        .modal-actions {
+            display: flex;
+            gap: 10px;
+            margin-top: 24px;
+        }
+
+        .modal-btn {
+            flex: 1;
+            padding: 12px;
+            border: 1.5px solid var(--ink-black);
+            font-family: 'Caveat', cursive;
+            font-size: 1.15rem;
+            font-weight: 700;
+            cursor: pointer;
+            text-align: center;
+            transition: all 0.15s;
+        }
+
+        .modal-btn-cancel {
+            background: white;
+            color: var(--ink-black);
+        }
+
+        .modal-btn-cancel:hover {
+            background: #f0f0f0;
+        }
+
+        .modal-btn-upload {
+            background: var(--ink-black);
+            color: white;
+        }
+
+        .modal-btn-upload:hover {
+            opacity: 0.85;
+        }
+
+        /* SEO Footer */
+        .seo-footer {
+            max-width: 800px;
+            margin: 60px auto 40px;
+            padding: 0 40px;
+            text-align: center;
+            color: #888;
+        }
+
+        .seo-footer h2 {
+            font-family: 'Caveat', cursive;
+            font-size: 1.8rem;
+            color: var(--ink-black);
+            margin-bottom: 12px;
+        }
+
+        .seo-footer p {
+            font-size: 0.85rem;
+            line-height: 1.6;
+            margin-bottom: 16px;
+        }
+
+        /* Mobile */
+        @media (max-width: 600px) {
+            .grid-row { padding: 16px 20px 40px; }
+            .card-grid { gap: 36px; }
+            .site-header { padding: 20px 20px 4px; }
+            .site-header h1 { font-size: 1.8rem; }
+            .modal-card { padding: 24px 20px 20px; }
+            .seo-footer { margin: 40px auto 30px; padding: 0 20px; }
+        }
+    </style>
 </head>
 <body>
-<div class="page">
-  <h1>Temp Upload</h1>
-  <p class="subtitle">Share files temporarily — they expire automatically</p>
 
-  <!-- Upload card -->
-  <div class="card">
-    <input type="file" id="fileInput">
+    <main class="app-container">
+        <header class="site-header">
+            <svg class="header-scribble"></svg>
+            <div>
+                <h1>tempfile</h1>
+                <div class="site-subtitle">Share files temporarily — they expire automatically</div>
+            </div>
+        </header>
 
-    <div class="drop-zone" id="dropZone">
-      <svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
-      <p>Drop a file here or <span>click to browse</span></p>
-    </div>
+        <div class="upload-scrim" id="uploadScrim"></div>
+        <section class="upload-row paper-texture" id="uploadRow">
+            <input type="file" id="fileInput">
+            <div class="upload-area" onclick="document.getElementById('fileInput').click()">
+                <svg class="card-border-svg upload-border-svg"></svg>
+                <svg class="rough-plus"></svg>
+                <p>Drop your file here</p>
+            </div>
+        </section>
 
-    <div class="file-pill" id="filePill">
-      <svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
-      <span class="pill-name" id="pillName"></span>
-      <span class="pill-size" id="pillSize"></span>
-      <button class="pill-remove" id="removeFile">&times;</button>
-    </div>
+        <section class="grid-row">
+            <div class="card-grid" id="cardGrid">
+                <!-- Upload card -->
+                <div class="card-wrapper upload-card" onclick="document.getElementById('fileInput').click()">
+                    <svg class="card-shadow-svg"></svg>
+                    <div class="card-body">
+                        <svg class="card-border-svg" data-style="dashed"></svg>
+                        <div class="file-preview">
+                            <svg class="rough-plus"></svg>
+                            <span class="upload-label">Upload File</span>
+                            <span class="upload-sublabel">or drag & drop anywhere</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
 
-    <div class="preview" id="preview"></div>
+        <!-- Settings Modal -->
+        <div class="modal-overlay" id="settingsModal">
+            <div class="modal-card">
+                <svg class="modal-border-svg"></svg>
+                <div class="modal-content">
+                    <div class="modal-title">Upload Settings</div>
+                    <div class="modal-filename" id="modalFilename"></div>
 
-    <div id="settings" style="display:none">
-      <hr class="divider">
+                    <div class="setting-row">
+                        <div class="setting-label">Rename file</div>
+                        <input type="text" class="setting-input" id="settingFilename" placeholder="Keep original name">
+                    </div>
 
-      <div class="row">
-        <div class="row-label">Rename file <span class="row-hint">optional</span></div>
-        <input type="text" class="input-field" id="fileNameInput" placeholder="Keep original name">
-      </div>
+                    <div class="setting-row">
+                        <div class="setting-label">When someone opens the link…</div>
+                        <div class="seg-buttons">
+                            <button class="seg-btn active" data-disp="inline">👁 Preview</button>
+                            <button class="seg-btn" data-disp="attachment">⬇️ Download</button>
+                            <button class="seg-btn" data-disp="">Auto</button>
+                        </div>
+                    </div>
 
-      <div class="row">
-        <div class="row-label">When someone opens the link…</div>
-        <div class="seg-group">
-          <input type="radio" name="disposition" id="d-inline" value="inline" checked>
-          <label for="d-inline">👁 Preview it</label>
-          <input type="radio" name="disposition" id="d-attachment" value="attachment">
-          <label for="d-attachment">⬇️ Download it</label>
-          <input type="radio" name="disposition" id="d-none" value="">
-          <label for="d-none">Auto</label>
+                    <div class="setting-row">
+                        <div class="setting-label">File available for…</div>
+                        <div class="expiry-presets">
+                            <button class="expiry-chip active" data-val="86400">1 day</button>
+                            <button class="expiry-chip" data-val="172800">2 days</button>
+                            <button class="expiry-chip" data-val="259200">3 days</button>
+                            <button class="expiry-chip" data-val="432000">5 days</button>
+                            <button class="expiry-chip" data-val="604800">1 week</button>
+                        </div>
+                    </div>
+
+                    <div class="modal-actions">
+                        <button class="modal-btn modal-btn-cancel" id="modalCancel">Cancel</button>
+                        <button class="modal-btn modal-btn-upload" id="modalUpload">Upload →</button>
+                    </div>
+                </div>
+            </div>
         </div>
-      </div>
 
-      <div class="row">
-        <div class="row-label">File will be available for…</div>
-        <div class="slider-row">
-          <input type="range" id="cacheSlider" min="86400" max="604800" value="86400" step="3600">
-          <span class="slider-val" id="sliderVal">1 day</span>
-        </div>
-        <div class="presets">
-          <button class="preset active" data-val="86400">1 day</button>
-          <button class="preset" data-val="172800">2 days</button>
-          <button class="preset" data-val="259200">3 days</button>
-          <button class="preset" data-val="432000">5 days</button>
-          <button class="preset" data-val="604800">1 week</button>
-        </div>
-      </div>
-    </div>
+        <!-- Toast -->
+        <div class="toast" id="toast"></div>
 
-    <button class="upload-btn" id="uploadBtn" disabled>
-      <span class="btn-text">Upload file</span>
-      <div class="spin"></div>
-    </button>
+        <!-- SEO Footer -->
+        <section class="seo-footer">
+            <h2>Why Tempfile?</h2>
+            <p><strong>Tempfile</strong> is built with a simple motive: to provide a clean, secure, and minimal way to share files temporarily. We share so many documents, images, and videos every day that only need to be accessed for a short time. Keeping them indefinitely wastes storage and increases privacy risks.</p>
+            <p>By automatically expiring uploads after a specified duration—from a single day up to one week—Tempfile ensures your digital footprint remains small. There are no accounts to create and no tracking involved. It's just fast, ephemeral file sharing designed for the modern web.</p>
+        </section>
+    </main>
 
-    <div class="banner" id="banner">
-      <div class="banner-title" id="bannerTitle"></div>
-      <div class="banner-text" id="bannerText"></div>
-      <div class="banner-actions" id="bannerActions"></div>
-    </div>
-  </div>
+    <svg style="position: absolute; width: 0; height: 0;">
+        <filter id="grainy">
+            <feTurbulence type="fractalNoise" baseFrequency="0.65" numOctaves="3" stitchTiles="stitch"/>
+            <feColorMatrix type="saturate" values="0"/>
+            <feBlend mode="multiply" in2="SourceGraphic"/>
+        </filter>
+    </svg>
 
-  <!-- History card -->
-  <div class="card" id="historyCard" style="display:none">
-    <div class="history-header">
-      <div class="history-title">PREVIOUSLY UPLOADED</div>
-      <button class="clear-btn" id="clearHistory">Clear all</button>
-    </div>
-    <div id="historyList"></div>
-  </div>
-</div>
+    <script src="https://unpkg.com/roughjs@4.5.2/bundled/rough.js"></script>
 
-<script>
-  const API_URL = 'http://localhost:3000';
-  const HISTORY_KEY = 'media_uploads';
+    <script>
+        // ========== COLOR PALETTE ==========
+        const COLORS = [
+            '#ff6b6b', // coral
+            '#4ecdc4', // teal
+            '#a29bfe', // purple
+            '#fd79a8', // pink
+            '#74b9ff', // sky
+            '#e17055', // burnt orange
+            '#00b894', // emerald
+            '#fdcb6e', // golden
+        ];
 
-  // Identity
-  let secretToken = localStorage.getItem('media_secret_token');
-  if (!secretToken) { secretToken = crypto.randomUUID(); localStorage.setItem('media_secret_token', secretToken); }
+        let colorCounter = 1; // start at 1; index 0 used by sample card
 
-  // Elements
-  const dropZone    = document.getElementById('dropZone');
-  const fileInput   = document.getElementById('fileInput');
-  const filePill    = document.getElementById('filePill');
-  const pillName    = document.getElementById('pillName');
-  const pillSize    = document.getElementById('pillSize');
-  const removeFile  = document.getElementById('removeFile');
-  const preview     = document.getElementById('preview');
-  const settings    = document.getElementById('settings');
-  const fileNameInput = document.getElementById('fileNameInput');
-  const cacheSlider = document.getElementById('cacheSlider');
-  const sliderVal   = document.getElementById('sliderVal');
-  const uploadBtn   = document.getElementById('uploadBtn');
-  const banner      = document.getElementById('banner');
-  const bannerTitle = document.getElementById('bannerTitle');
-  const bannerText  = document.getElementById('bannerText');
-  const bannerActions = document.getElementById('bannerActions');
-  const historyCard = document.getElementById('historyCard');
-  const historyList = document.getElementById('historyList');
-  const clearHistory = document.getElementById('clearHistory');
-  let currentFile = null;
-  let previewUrl = null;
+        function getCardColor(wrapper) {
+            const idx = parseInt(wrapper.dataset.colorIndex || '0');
+            return COLORS[idx % COLORS.length];
+        }
 
-  // Helpers
-  function fmtDur(s) {
-    s = Number(s);
-    if (s < 3600)   return `${Math.round(s/60)} min`;
-    if (s < 86400)  return `${(s/3600).toFixed(s%3600===0?0:1).replace(/\.0$/,'')} hr`;
-    if (s < 604800) { const d = Math.round(s/86400); return `${d} day${d>1?'s':''}`; }
-    return '1 week';
-  }
-  function fmtSize(b) {
-    if (b<1024) return b+' B'; if (b<1048576) return (b/1024).toFixed(1)+' KB'; return (b/1048576).toFixed(1)+' MB';
-  }
-  function fmtExpiry(ts) {
-    const diff = ts - Date.now();
-    if (diff <= 0) return { label: 'Expired', cls: 'dead' };
-    const m = Math.floor(diff/60000);
-    const h = Math.floor(diff/3600000);
-    const d = Math.floor(diff/86400000);
-    let label;
-    if (d > 0) label = `Expires in ${d} day${d>1?'s':''}`;
-    else if (h > 0) label = `Expires in ${h} hr`;
-    else label = `Expires in ${m} min`;
-    const cls = d >= 1 ? 'ok' : h >= 1 ? 'warn' : 'warn';
-    return { label, cls };
-  }
-  function fmtDate(ts) {
-    return new Date(ts).toLocaleDateString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
-  }
-  function extIcon(name) {
-    const ext = name.split('.').pop().toLowerCase();
-    if (['jpg','jpeg','png','gif','webp','svg','avif'].includes(ext)) return '🖼';
-    if (['mp4','webm','mov','avi'].includes(ext)) return '🎬';
-    if (['mp3','wav','ogg','aac'].includes(ext)) return '🎵';
-    if (['pdf'].includes(ext)) return '📄';
-    if (['zip','tar','gz','rar'].includes(ext)) return '🗜';
-    return '📎';
-  }
+        // ========== ROUGH CONFIGS ==========
+        const ROUGH_BASE = { roughness: 1.8, bowing: 1.5, seed: 42 };
+        const SHADOW_OFFSET = 8;
 
-  // Drag & drop
-  ['dragenter','dragover','dragleave','drop'].forEach(e => dropZone.addEventListener(e, ev => { ev.preventDefault(); ev.stopPropagation(); }));
-  ['dragenter','dragover'].forEach(e => dropZone.addEventListener(e, () => dropZone.classList.add('over')));
-  ['dragleave','drop'].forEach(e => dropZone.addEventListener(e, () => dropZone.classList.remove('over')));
-  dropZone.addEventListener('drop', e => handleFile(e.dataTransfer.files[0]));
-  dropZone.addEventListener('click', () => fileInput.click());
-  fileInput.addEventListener('change', function() { if (this.files[0]) handleFile(this.files[0]); });
+        // ========== MASTER DRAW ==========
+        function drawAll() {
+            drawCardShadows();
+            drawCardBorders();
+            drawButtons();
+            drawPlusSigns();
+            drawIcons();
+            drawHeaderScribble();
+            drawUploadBorder();
+        }
 
-  function handleFile(file) {
-    currentFile = file;
-    pillName.textContent = file.name;
-    pillSize.textContent = fmtSize(file.size);
-    fileNameInput.value = '';
-    fileNameInput.placeholder = file.name;
-    dropZone.style.display = 'none';
-    filePill.style.display = 'flex';
-    settings.style.display = 'block';
-    uploadBtn.disabled = false;
-    banner.style.display = 'none';
-    showPreview(file);
-  }
+        // ========== CARD SHADOWS ==========
+        function drawCardShadows() {
+            document.querySelectorAll('.card-wrapper:not(.upload-card) .card-shadow-svg').forEach(svg => {
+                svg.innerHTML = '';
+                const rc = rough.svg(svg);
+                const w = svg.clientWidth;
+                const h = svg.clientHeight;
+                const wrapper = svg.closest('.card-wrapper');
+                const color = wrapper ? getCardColor(wrapper) : COLORS[0];
 
-  function showPreview(file) {
-    if (previewUrl) { URL.revokeObjectURL(previewUrl); previewUrl = null; }
-    preview.innerHTML = '';
-    const type = file.type || '';
-    const ext = file.name.split('.').pop().toLowerCase();
-    previewUrl = URL.createObjectURL(file);
+                svg.appendChild(rc.rectangle(SHADOW_OFFSET, SHADOW_OFFSET, w - 2, h - 2, {
+                    ...ROUGH_BASE,
+                    strokeWidth: 0,
+                    fill: color,
+                    fillStyle: 'zigzag',
+                    hachureGap: 4,
+                    fillWeight: 1.8,
+                    seed: 99,
+                }));
+            });
+        }
 
-    if (type.startsWith('image/')) {
-      preview.innerHTML = `<img src="${previewUrl}" alt="Preview"><span class="preview-label">${ext}</span>`;
-    } else if (type.startsWith('video/')) {
-      preview.innerHTML = `<video src="${previewUrl}" controls muted></video><span class="preview-label">${ext}</span>`;
-    } else if (type.startsWith('audio/')) {
-      preview.innerHTML = `<audio src="${previewUrl}" controls></audio><span class="preview-label">${ext}</span>`;
-    } else if (type.startsWith('text/') || ['json','xml','csv','md','js','ts','html','css','yml','yaml','log','env'].includes(ext)) {
-      const reader = new FileReader();
-      reader.onload = () => { preview.innerHTML = `<div class="preview-text">${reader.result.substring(0, 2000).replace(/</g,'&lt;')}</div><span class="preview-label">${ext}</span>`; };
-      reader.readAsText(file.slice(0, 2000));
-    } else {
-      preview.innerHTML = `<div class="preview-generic">${extIcon(file.name)}</div><span class="preview-label">${ext}</span>`;
-    }
-    preview.style.display = 'block';
-  }
+        // ========== CARD BORDERS ==========
+        function drawCardBorders() {
+            document.querySelectorAll('.card-border-svg[data-style]').forEach(svg => {
+                svg.innerHTML = '';
+                const rc = rough.svg(svg);
+                const w = svg.clientWidth;
+                const h = svg.clientHeight;
+                const wrapper = svg.closest('.card-wrapper');
+                const color = wrapper ? getCardColor(wrapper) : '#bbb';
+                const style = svg.dataset.style;
 
-  removeFile.addEventListener('click', () => {
-    currentFile = null; fileInput.value = '';
-    if (previewUrl) { URL.revokeObjectURL(previewUrl); previewUrl = null; }
-    dropZone.style.display = 'block'; filePill.style.display = 'none';
-    preview.style.display = 'none'; preview.innerHTML = '';
-    settings.style.display = 'none'; uploadBtn.disabled = true;
-    banner.style.display = 'none';
-  });
+                if (style === 'dashed') {
+                    svg.appendChild(rc.rectangle(1, 1, w - 2, h - 2, {
+                        ...ROUGH_BASE,
+                        stroke: '#ccc',
+                        strokeWidth: 2,
+                        strokeLineDash: [10, 8],
+                    }));
+                } else {
+                    // Outer border
+                    svg.appendChild(rc.rectangle(1, 1, w - 2, h - 2, {
+                        ...ROUGH_BASE,
+                        stroke: color,
+                        strokeWidth: 2.5,
+                    }));
 
-  // Slider
-  cacheSlider.addEventListener('input', () => {
-    sliderVal.textContent = fmtDur(cacheSlider.value);
-    document.querySelectorAll('.preset').forEach(b => b.classList.toggle('active', b.dataset.val == cacheSlider.value));
-  });
-  document.querySelectorAll('.preset').forEach(btn => btn.addEventListener('click', () => {
-    cacheSlider.value = btn.dataset.val;
-    sliderVal.textContent = fmtDur(btn.dataset.val);
-    document.querySelectorAll('.preset').forEach(b => b.classList.remove('active'));
-    btn.classList.add('active');
-  }));
+                    // Divider line between preview and button
+                    const btn = svg.parentElement.querySelector('.copy-button');
+                    if (btn) {
+                        const btnH = btn.offsetHeight;
+                        const dividerY = h - btnH;
+                        svg.appendChild(rc.line(1, dividerY, w - 1, dividerY, {
+                            ...ROUGH_BASE,
+                            stroke: color,
+                            strokeWidth: 2,
+                        }));
+                    }
+                }
+            });
+        }
 
-  // Upload
-  uploadBtn.addEventListener('click', async () => {
-    if (!currentFile) return;
-    uploadBtn.classList.add('loading'); uploadBtn.disabled = true; banner.style.display = 'none';
-    try {
-      const disposition = document.querySelector('input[name="disposition"]:checked').value;
-      const dur = Number(cacheSlider.value);
-      const filename = fileNameInput.value.trim() || currentFile.name;
-      const params = new URLSearchParams({ filename, cacheDuration: dur, secretToken });
-      if (currentFile.type) params.append('contentType', currentFile.type);
-      if (disposition) params.append('contentDisposition', disposition);
+        // ========== UPLOAD AREA BORDER ==========
+        function drawUploadBorder() {
+            const svg = document.querySelector('.upload-border-svg');
+            if (!svg) return;
+            svg.innerHTML = '';
+            const rc = rough.svg(svg);
+            const w = svg.clientWidth;
+            const h = svg.clientHeight;
+            svg.appendChild(rc.rectangle(1, 1, w - 2, h - 2, {
+                ...ROUGH_BASE,
+                stroke: '#ccc',
+                strokeWidth: 2,
+                strokeLineDash: [10, 8],
+            }));
+        }
 
-      const apiRes = await fetch(`${API_URL}/temp-file-url?${params}`);
-      const data = await apiRes.json();
-      if (!apiRes.ok) throw new Error(data.error || 'Could not prepare upload');
+        // ========== BUTTONS ==========
+        function drawButtons() {
+            document.querySelectorAll('.btn-bg-svg').forEach(svg => {
+                svg.innerHTML = '';
+                const rc = rough.svg(svg);
+                const w = svg.clientWidth;
+                const h = svg.clientHeight;
+                const wrapper = svg.closest('.card-wrapper');
+                const color = wrapper ? getCardColor(wrapper) : COLORS[0];
 
-      const s3Res = await fetch(data.uploadUrl, { method: 'PUT', body: currentFile, headers: data.requiredHeaders });
-      if (!s3Res.ok) throw new Error('Upload to storage failed');
+                svg.appendChild(rc.rectangle(0, 0, w, h, {
+                    ...ROUGH_BASE,
+                    stroke: 'transparent',
+                    strokeWidth: 0,
+                    fill: color,
+                    fillStyle: 'zigzag',
+                    hachureGap: 3,
+                    fillWeight: 2.2,
+                    seed: 77,
+                }));
+            });
+        }
 
-      if (data.publicUrl) {
-        await fetch(`${API_URL}/upload-complete`, {
-          method: 'POST', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ publicUrl: data.publicUrl, secretToken }),
+        // ========== PLUS SIGNS ==========
+        function drawPlusSigns() {
+            document.querySelectorAll('.rough-plus').forEach(svg => {
+                svg.innerHTML = '';
+                const rc = rough.svg(svg);
+                const w = svg.clientWidth;
+                const h = svg.clientHeight;
+                const cx = w / 2, cy = h / 2;
+                const len = Math.min(w, h) * 0.34;
+                const cfg = { ...ROUGH_BASE, stroke: '#bbb', strokeWidth: 2.5 };
+                svg.appendChild(rc.line(cx, cy - len, cx, cy + len, cfg));
+                svg.appendChild(rc.line(cx - len, cy, cx + len, cy, cfg));
+            });
+        }
+
+        // ========== HEADER SCRIBBLE ==========
+        function drawHeaderScribble() {
+            const svg = document.querySelector('.header-scribble');
+            if (!svg) return;
+            svg.innerHTML = '';
+            const rc = rough.svg(svg);
+            const s = svg.clientWidth;
+
+            svg.appendChild(rc.circle(s/2, s/2, s * 0.75, {
+                ...ROUGH_BASE,
+                stroke: COLORS[0],
+                strokeWidth: 2.5,
+                fill: COLORS[7],
+                fillStyle: 'cross-hatch',
+                hachureGap: 4,
+                fillWeight: 1.2,
+                roughness: 2.5,
+                seed: 13,
+            }));
+            svg.appendChild(rc.circle(s/2 + 3, s/2 - 2, s * 0.3, {
+                ...ROUGH_BASE,
+                stroke: COLORS[2],
+                strokeWidth: 2,
+                fill: COLORS[2],
+                fillStyle: 'zigzag',
+                hachureGap: 2.5,
+                fillWeight: 1,
+                roughness: 2,
+                seed: 17,
+            }));
+        }
+
+        // ========== ICONS ==========
+        function drawIcon(svg, iconType) {
+            svg.innerHTML = '';
+            const rc = rough.svg(svg);
+            const w = svg.clientWidth;
+            const h = svg.clientHeight;
+            const pad = 10;
+            const wrapper = svg.closest('.card-wrapper');
+            const color = wrapper ? getCardColor(wrapper) : COLORS[0];
+            const cfg = { ...ROUGH_BASE, stroke: color, strokeWidth: 2 };
+
+            switch (iconType) {
+                case 'text':
+                    svg.appendChild(rc.rectangle(pad, pad, w-pad*2, h-pad*2, cfg));
+                    [0.3, 0.5, 0.7].forEach((pct, i) => {
+                        const y = pad + (h-pad*2) * pct;
+                        const end = i === 2 ? w - pad - 22 : w - pad - 10;
+                        svg.appendChild(rc.line(pad+10, y, end, y, cfg));
+                    });
+                    break;
+
+                case 'img':
+                    svg.appendChild(rc.rectangle(pad, pad, w-pad*2, h-pad*2, cfg));
+                    svg.appendChild(rc.circle(pad+20, pad+20, 14, {
+                        ...cfg,
+                        fill: COLORS[7],
+                        fillStyle: 'zigzag',
+                        hachureGap: 2,
+                        fillWeight: 1,
+                    }));
+                    svg.appendChild(rc.linearPath([
+                        [pad+4, h-pad-4],
+                        [w/2-4, pad+30],
+                        [w/2+10, pad+42],
+                        [w-pad-4, h-pad-4]
+                    ], cfg));
+                    break;
+
+                case 'video':
+                    svg.appendChild(rc.rectangle(pad, pad, w-pad*2, h-pad*2, cfg));
+                    const cx = w/2, cy = h/2;
+                    svg.appendChild(rc.polygon([
+                        [cx-10, cy-14],
+                        [cx+14, cy],
+                        [cx-10, cy+14]
+                    ], {
+                        ...cfg,
+                        fill: color,
+                        fillStyle: 'zigzag',
+                        hachureGap: 3,
+                        fillWeight: 1,
+                    }));
+                    break;
+
+                case 'word':
+                    svg.appendChild(rc.rectangle(pad, pad, w-pad*2, h-pad*2, cfg));
+                    svg.appendChild(rc.linearPath([
+                        [pad+14, pad+20],
+                        [pad+22, h-pad-16],
+                        [w/2, pad+32],
+                        [w-pad-22, h-pad-16],
+                        [w-pad-14, pad+20]
+                    ], { ...cfg, strokeWidth: 2.5 }));
+                    break;
+
+                default:
+                    svg.appendChild(rc.rectangle(pad, pad, w-pad*2, h-pad*2, cfg));
+                    break;
+            }
+        }
+
+        function drawIcons() {
+            document.querySelectorAll('.rough-icon').forEach(svg => {
+                drawIcon(svg, svg.dataset.icon || 'text');
+            });
+        }
+
+        // ========== RESIZE OBSERVER ==========
+        const ro = new ResizeObserver(() => requestAnimationFrame(drawAll));
+
+        window.addEventListener('load', () => {
+            const grid = document.getElementById('cardGrid');
+            if (grid) ro.observe(grid);
+
+            const uploadArea = document.querySelector('.upload-area');
+            if (uploadArea) ro.observe(uploadArea);
+
+            drawAll();
         });
-      }
 
-      const finalUrl = data.publicUrl || (new URL(data.uploadUrl).origin + new URL(data.uploadUrl).pathname);
+        // ========== TTL HELPERS ==========
+        function fmtTtl(expiresAt) {
+            const diff = expiresAt - Date.now();
+            if (diff <= 0) return { text: 'Expired', cls: 'ttl-dead' };
+            const m = Math.floor(diff / 60000);
+            const h = Math.floor(diff / 3600000);
+            const d = Math.floor(diff / 86400000);
+            if (d > 0) return { text: `${d}d left`, cls: 'ttl-ok' };
+            if (h > 0) return { text: `${h}h left`, cls: 'ttl-ok' };
+            if (m > 10) return { text: `${m}m left`, cls: 'ttl-warn' };
+            return { text: `${m}m left`, cls: 'ttl-danger' };
+        }
 
-      // Save to history (with optional thumbnail for images)
-      const uploads = JSON.parse(localStorage.getItem(HISTORY_KEY) || '[]');
-      const entry = { name: filename, url: finalUrl, uploadedAt: Date.now(), expiresAt: Date.now() + dur * 1000 };
-      if (currentFile && currentFile.type && currentFile.type.startsWith('image/')) {
-        try {
-          const thumb = await makeThumb(currentFile, 72);
-          entry.thumb = thumb;
-        } catch(_) {}
-      }
-      uploads.unshift(entry);
-      localStorage.setItem(HISTORY_KEY, JSON.stringify(uploads.slice(0, 20))); // keep last 20
-      renderHistory();
+        function refreshAllTtl() {
+            document.querySelectorAll('.ttl-badge[data-expires]').forEach(badge => {
+                const expiresAt = parseInt(badge.dataset.expires);
+                const { text, cls } = fmtTtl(expiresAt);
+                badge.textContent = text;
+                badge.className = 'ttl-badge ' + cls;
+            });
+        }
 
-      showBanner('ok', '✓ File uploaded!', finalUrl);
-    } catch (err) {
-      showBanner('err', '✕ Something went wrong', err.message);
-    } finally {
-      uploadBtn.classList.remove('loading'); uploadBtn.disabled = false;
-    }
-  });
+        // Refresh TTL labels every 30 seconds
+        setInterval(refreshAllTtl, 30000);
 
-  function showBanner(type, title, text) {
-    banner.className = `banner ${type}`;
-    bannerTitle.textContent = title;
-    bannerText.textContent = text;
-    bannerActions.innerHTML = '';
-    if (type === 'ok') {
-      const open = document.createElement('a');
-      open.href = text; open.target = '_blank'; open.className = 'action-btn'; open.textContent = 'Open file';
-      const copy = document.createElement('button');
-      copy.className = 'action-btn'; copy.textContent = 'Copy link';
-      copy.onclick = () => { navigator.clipboard.writeText(text); copy.textContent = 'Copied!'; setTimeout(() => copy.textContent = 'Copy link', 2000); };
-      bannerActions.append(open, copy);
-    }
-    banner.style.display = 'block';
-  }
+        // ========== PROGRESS BAR ==========
+        function drawProgress(svg, pct, color) {
+            svg.innerHTML = '';
+            const rc = rough.svg(svg);
+            const w = svg.clientWidth;
+            const h = svg.clientHeight;
+            if (w === 0 || h === 0) return;
 
-  // Thumbnail generator
-  function makeThumb(file, size) {
-    return new Promise((resolve, reject) => {
-      const img = new Image();
-      img.onload = () => {
-        const c = document.createElement('canvas');
-        const s = Math.min(size / img.width, size / img.height);
-        c.width = img.width * s; c.height = img.height * s;
-        c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
-        URL.revokeObjectURL(img.src);
-        resolve(c.toDataURL('image/jpeg', 0.6));
-      };
-      img.onerror = reject;
-      img.src = URL.createObjectURL(file);
-    });
-  }
+            // Background track
+            svg.appendChild(rc.rectangle(0, 0, w, h, {
+                ...ROUGH_BASE,
+                stroke: '#ddd',
+                strokeWidth: 1.5,
+                roughness: 1.2,
+                seed: 55,
+            }));
 
-  // History
-  clearHistory.addEventListener('click', () => {
-    localStorage.removeItem(HISTORY_KEY); renderHistory();
-  });
+            // Filled portion
+            const fillW = Math.max(4, w * Math.min(pct, 1));
+            svg.appendChild(rc.rectangle(0, 0, fillW, h, {
+                ...ROUGH_BASE,
+                stroke: color,
+                strokeWidth: 1.5,
+                fill: color,
+                fillStyle: 'zigzag',
+                hachureGap: 3,
+                fillWeight: 1.5,
+                roughness: 1,
+                seed: 55,
+            }));
+        }
 
-  function renderHistory() {
-    const uploads = JSON.parse(localStorage.getItem(HISTORY_KEY) || '[]');
-    if (uploads.length === 0) { historyCard.style.display = 'none'; return; }
-    historyCard.style.display = 'block';
-    historyList.innerHTML = '';
-    uploads.forEach((item, i) => {
-      const { label, cls } = fmtExpiry(item.expiresAt);
-      const el = document.createElement('div');
-      el.className = 'hist-item';
-      const iconHtml = item.thumb
-        ? `<img class="hist-thumb" src="${item.thumb}" alt="">`
-        : `<div class="hist-icon">${extIcon(item.name)}</div>`;
-      el.innerHTML = `
-        ${iconHtml}
-        <div class="hist-body">
-          <div class="hist-name">${item.name}</div>
-          <div class="hist-meta">
-            <span class="expiry ${cls}">${label}</span>
-            &nbsp;·&nbsp; Uploaded ${fmtDate(item.uploadedAt)}
-          </div>
-        </div>
-        <div class="hist-actions">
-          <a class="hist-btn" href="${item.url}" target="_blank">Open</a>
-          <button class="hist-btn" data-i="${i}">Copy</button>
-        </div>`;
-      el.querySelector('[data-i]').addEventListener('click', function() {
-        navigator.clipboard.writeText(item.url);
-        this.textContent = 'Copied!'; setTimeout(() => this.textContent = 'Copy', 2000);
-      });
-      historyList.appendChild(el);
-    });
-  }
+        // ========== TOAST ==========
+        function showToast(msg, duration = 2200) {
+            const t = document.getElementById('toast');
+            t.textContent = msg;
+            t.classList.add('show');
+            setTimeout(() => t.classList.remove('show'), duration);
+        }
 
-  renderHistory();
-</script>
+        // ========== COPY TO CLIPBOARD ==========
+        function copyToClipboard(text, button) {
+            navigator.clipboard.writeText(text).then(() => {
+                const label = button.querySelector('.btn-label');
+                const orig = label.innerText;
+                label.innerText = "Copied!";
+
+                // Green flash
+                const svg = button.querySelector('.btn-bg-svg');
+                if (svg) {
+                    svg.innerHTML = '';
+                    const rc = rough.svg(svg);
+                    svg.appendChild(rc.rectangle(0, 0, svg.clientWidth, svg.clientHeight, {
+                        ...ROUGH_BASE,
+                        stroke: 'transparent',
+                        strokeWidth: 0,
+                        fill: '#27ae60',
+                        fillStyle: 'zigzag',
+                        hachureGap: 3,
+                        fillWeight: 2.2,
+                        seed: 77,
+                    }));
+                }
+
+                showToast('✓ Link copied to clipboard');
+
+                setTimeout(() => {
+                    label.innerText = orig;
+                    drawButtons();
+                }, 1800);
+            });
+        }
+
+        // ========== API CONFIG ==========
+        const API_URL = 'https://tmp-file-media-func-4epls.bunny.run';
+        const HISTORY_KEY = 'media_uploads';
+
+        // Identity — persist a secret token per browser
+        let secretToken = localStorage.getItem('media_secret_token');
+        if (!secretToken) {
+            secretToken = crypto.randomUUID();
+            localStorage.setItem('media_secret_token', secretToken);
+        }
+
+        // ========== FILE STAGING ==========
+        let pendingFile = null;
+
+        function showSettingsModal(file) {
+            pendingFile = file;
+            document.getElementById('modalFilename').textContent = file.name;
+            document.getElementById('settingFilename').value = file.name;
+
+            // Reset disposition
+            document.querySelectorAll('.seg-btn').forEach(b => b.classList.remove('active'));
+            document.querySelector('.seg-btn[data-disp="inline"]').classList.add('active');
+
+            // Reset expiry
+            document.querySelectorAll('.expiry-chip').forEach(b => b.classList.remove('active'));
+            document.querySelector('.expiry-chip[data-val="86400"]').classList.add('active');
+
+            const modal = document.getElementById('settingsModal');
+            modal.classList.add('active');
+
+            // Draw modal border
+            requestAnimationFrame(() => {
+                const svg = modal.querySelector('.modal-border-svg');
+                if (svg) {
+                    svg.innerHTML = '';
+                    const rc = rough.svg(svg);
+                    const w = svg.clientWidth;
+                    const h = svg.clientHeight;
+                    svg.appendChild(rc.rectangle(1, 1, w - 2, h - 2, {
+                        ...ROUGH_BASE,
+                        stroke: '#2d2d2d',
+                        strokeWidth: 2.5,
+                    }));
+                }
+            });
+        }
+
+        function closeSettingsModal() {
+            pendingFile = null;
+            document.getElementById('settingsModal').classList.remove('active');
+        }
+
+        function getModalSettings() {
+            const filename = document.getElementById('settingFilename').value.trim() || pendingFile.name;
+            const activeDisp = document.querySelector('.seg-btn.active');
+            const disposition = activeDisp ? activeDisp.dataset.disp : 'inline';
+            const activeExpiry = document.querySelector('.expiry-chip.active');
+            const cacheDuration = activeExpiry ? parseInt(activeExpiry.dataset.val) : 86400;
+            return { filename, disposition, cacheDuration };
+        }
+
+        // Disposition segmented buttons
+        document.querySelectorAll('.seg-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                document.querySelectorAll('.seg-btn').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+            });
+        });
+
+        // Expiry chips
+        document.querySelectorAll('.expiry-chip').forEach(chip => {
+            chip.addEventListener('click', () => {
+                document.querySelectorAll('.expiry-chip').forEach(c => c.classList.remove('active'));
+                chip.classList.add('active');
+            });
+        });
+
+        // Cancel button
+        document.getElementById('modalCancel').addEventListener('click', closeSettingsModal);
+
+        // Close on overlay click
+        document.getElementById('settingsModal').addEventListener('click', (e) => {
+            if (e.target === e.currentTarget) closeSettingsModal();
+        });
+
+        // Keyboard shortcuts for modal
+        document.addEventListener('keydown', (e) => {
+            const modal = document.getElementById('settingsModal');
+            if (!modal.classList.contains('active')) return;
+            if (e.key === 'Escape') closeSettingsModal();
+            if (e.key === 'Enter' && pendingFile) {
+                e.preventDefault();
+                document.getElementById('modalUpload').click();
+            }
+        });
+
+        // Upload button
+        document.getElementById('modalUpload').addEventListener('click', () => {
+            if (!pendingFile) return;
+            const settings = getModalSettings();
+            const file = pendingFile;
+            closeSettingsModal();
+            uploadFile(file, settings);
+        });
+
+        // ========== FILE INPUT ==========
+        document.getElementById('fileInput').addEventListener('change', function() {
+            if (this.files.length > 0) {
+                const file = this.files[0];
+                document.getElementById('uploadRow').classList.remove('active');
+                document.getElementById('uploadScrim').classList.remove('active');
+                this.value = '';
+                showSettingsModal(file);
+            }
+        });
+
+        // ========== FILE TYPE DETECTION ==========
+        function getIconType(ext) {
+            if (['jpg','jpeg','png','gif','svg','webp','bmp'].includes(ext)) return 'img';
+            if (['mp4','webm','ogg','mov','avi','mkv'].includes(ext)) return 'video';
+            if (['doc','docx'].includes(ext)) return 'word';
+            return 'text';
+        }
+
+        // ========== FORMAT FILE SIZE ==========
+        function fmtSize(b) {
+            if (b < 1024) return b + ' B';
+            if (b < 1048576) return (b / 1024).toFixed(1) + ' KB';
+            return (b / 1048576).toFixed(1) + ' MB';
+        }
+
+        // ========== UPLOAD FILE ==========
+        async function uploadFile(file, settings = {}) {
+            const cacheDuration = settings.cacheDuration || 86400;
+            const disposition = settings.disposition || 'inline';
+            const filename = settings.filename || file.name;
+            const fileSize = fmtSize(file.size);
+
+            const grid = document.getElementById('cardGrid');
+            const ext = filename.split('.').pop().toLowerCase();
+            const iconType = getIconType(ext);
+            const cidx = colorCounter % COLORS.length;
+            colorCounter++;
+
+            // Create the card immediately in a "loading" state
+            const wrapper = document.createElement('div');
+            wrapper.className = 'card-wrapper';
+            wrapper.dataset.colorIndex = cidx;
+
+            wrapper.innerHTML = `
+                <svg class="card-shadow-svg"></svg>
+                <div class="card-body">
+                    <svg class="card-border-svg" data-style="solid"></svg>
+                    <div class="file-preview">
+                        <svg class="rough-icon" data-icon="${iconType}"></svg>
+                        <span class="file-type-label">${ext}</span>
+                        <span class="file-name-label" title="${filename}">${filename}</span>
+                        <span class="file-size-label">${fileSize}</span>
+                        <div class="progress-container">
+                            <svg class="progress-svg"></svg>
+                        </div>
+                        <span class="progress-label">0%</span>
+                    </div>
+                    <button class="copy-button" disabled style="opacity:0.5;">
+                        <svg class="btn-bg-svg"></svg>
+                        <span class="btn-label">Uploading…</span>
+                    </button>
+                </div>
+            `;
+
+            const uploadCard = grid.querySelector('.upload-card');
+            if (uploadCard && uploadCard.nextSibling) {
+                grid.insertBefore(wrapper, uploadCard.nextSibling);
+            } else {
+                grid.appendChild(wrapper);
+            }
+
+            requestAnimationFrame(drawAll);
+
+            // Remove empty state if present
+            const emptyState = grid.querySelector('.empty-state');
+            if (emptyState) emptyState.remove();
+
+            // Draw initial empty progress bar
+            const color = COLORS[cidx % COLORS.length];
+            const progressSvg = wrapper.querySelector('.progress-svg');
+            const progressLabel = wrapper.querySelector('.progress-label');
+            drawProgress(progressSvg, 0, color);
+
+            try {
+                // 1. Get presigned upload URL
+                const params = new URLSearchParams({
+                    filename,
+                    cacheDuration: cacheDuration.toString(),
+                    contentLength: file.size.toString(),
+                    secretToken,
+                });
+                if (file.type) params.append('contentType', file.type);
+                if (disposition) params.append('contentDisposition', disposition);
+
+                // Update progress: preparing
+                progressLabel.textContent = 'Preparing…';
+                drawProgress(progressSvg, 0.05, color);
+
+                const apiRes = await fetch(`${API_URL}/temp-file-url?${params}`);
+                const data = await apiRes.json();
+                if (!apiRes.ok) throw new Error(data.error || 'Could not prepare upload');
+
+                // 2. PUT file to S3 using XHR for progress
+                drawProgress(progressSvg, 0.1, color);
+                progressLabel.textContent = '10%';
+
+                await new Promise((resolve, reject) => {
+                    const xhr = new XMLHttpRequest();
+                    xhr.open('PUT', data.uploadUrl);
+
+                    // Set required headers
+                    if (data.requiredHeaders) {
+                        Object.entries(data.requiredHeaders).forEach(([k, v]) => {
+                            xhr.setRequestHeader(k, v);
+                        });
+                    }
+
+                    xhr.upload.addEventListener('progress', (e) => {
+                        if (e.lengthComputable) {
+                            // Map 0-100% upload to 10-90% of progress bar
+                            const uploadPct = e.loaded / e.total;
+                            const displayPct = 0.1 + uploadPct * 0.8;
+                            drawProgress(progressSvg, displayPct, color);
+                            progressLabel.textContent = Math.round(displayPct * 100) + '%';
+                        }
+                    });
+
+                    xhr.onload = () => {
+                        if (xhr.status >= 200 && xhr.status < 300) {
+                            resolve();
+                        } else {
+                            reject(new Error('Upload to storage failed'));
+                        }
+                    };
+                    xhr.onerror = () => reject(new Error('Network error during upload'));
+                    xhr.send(file);
+                });
+
+                // 3. Notify backend that upload is complete (triggers cache purge, etc)
+                if (data.publicUrl) {
+                    await fetch(`${API_URL}/upload-complete`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ publicUrl: data.publicUrl, secretToken }),
+                    });
+                }
+
+                // 4. Determine final URL
+                const finalUrl = data.publicUrl || (new URL(data.uploadUrl).origin + new URL(data.uploadUrl).pathname);
+
+                // 5. Save to localStorage history
+                let uploads = JSON.parse(localStorage.getItem(HISTORY_KEY) || '[]');
+                
+                // Remove existing entry with the same URL to prefer the latest
+                uploads = uploads.filter(u => u.url !== finalUrl);
+                
+                uploads.unshift({
+                    name: filename,
+                    url: finalUrl,
+                    uploadedAt: Date.now(),
+                    expiresAt: Date.now() + cacheDuration * 1000,
+                });
+                localStorage.setItem(HISTORY_KEY, JSON.stringify(uploads.slice(0, 50)));
+
+                // Remove existing cards in the DOM with the same URL to prevent visual duplicates
+                const existingCards = Array.from(grid.querySelectorAll('.card-wrapper')).filter(c => c !== wrapper && c.dataset.url === finalUrl);
+                existingCards.forEach(c => c.remove());
+
+                // 6. Update card to "success" state
+                drawProgress(progressSvg, 1, color);
+                progressLabel.textContent = 'Done!';
+
+                // Store URL on wrapper for click-to-open
+                wrapper.dataset.url = finalUrl;
+                wrapper.addEventListener('click', (e) => {
+                    if (e.target.closest('.copy-button')) return;
+                    window.open(finalUrl, '_blank');
+                });
+
+                showToast('✓ File uploaded successfully!');
+
+                // Clean up progress elements after a brief moment
+                const expiresAt = Date.now() + cacheDuration * 1000;
+                setTimeout(() => {
+                    const progressContainer = wrapper.querySelector('.progress-container');
+                    if (progressContainer) progressContainer.remove();
+                    if (progressLabel) progressLabel.remove();
+
+                    // Add TTL badge
+                    const { text, cls } = fmtTtl(expiresAt);
+                    const badge = document.createElement('span');
+                    badge.className = 'ttl-badge ' + cls;
+                    badge.dataset.expires = expiresAt;
+                    badge.textContent = text;
+                    wrapper.querySelector('.card-body').appendChild(badge);
+                }, 600);
+
+                const btn = wrapper.querySelector('.copy-button');
+                btn.disabled = false;
+                btn.style.opacity = '1';
+                btn.setAttribute('onclick', `event.stopPropagation(); copyToClipboard('${finalUrl}', this)`);
+                btn.querySelector('.btn-label').textContent = 'Copy Link';
+
+            } catch (err) {
+                // Show error state on the card
+                const progressContainer = wrapper.querySelector('.progress-container');
+                if (progressContainer) progressContainer.remove();
+                if (progressLabel) progressLabel.textContent = '✕ ' + err.message;
+                if (progressLabel) progressLabel.style.color = '#e74c3c';
+
+                const btn = wrapper.querySelector('.copy-button');
+                btn.querySelector('.btn-label').textContent = 'Failed';
+                console.error('Upload error:', err);
+            }
+        }
+
+        // ========== RENDER HISTORY ON LOAD ==========
+        function renderHistory() {
+            const grid = document.getElementById('cardGrid');
+            const uploads = JSON.parse(localStorage.getItem(HISTORY_KEY) || '[]');
+
+            uploads.forEach((item, i) => {
+                const ext = item.name.split('.').pop().toLowerCase();
+                const iconType = getIconType(ext);
+                const cidx = colorCounter % COLORS.length;
+                colorCounter++;
+
+                const wrapper = document.createElement('div');
+                wrapper.className = 'card-wrapper';
+                wrapper.dataset.colorIndex = cidx;
+
+                const isExpired = item.expiresAt && item.expiresAt < Date.now();
+                const { text: ttlText, cls: ttlCls } = fmtTtl(item.expiresAt || 0);
+
+                wrapper.innerHTML = `
+                    <svg class="card-shadow-svg"></svg>
+                    <div class="card-body"${isExpired ? ' style="opacity:0.5;"' : ''}>
+                        <svg class="card-border-svg" data-style="solid"></svg>
+                        <span class="ttl-badge ${ttlCls}" data-expires="${item.expiresAt || 0}">${ttlText}</span>
+                        <div class="file-preview">
+                            <svg class="rough-icon" data-icon="${iconType}"></svg>
+                            <span class="file-type-label">${ext}</span>
+                            <span class="file-name-label" title="${item.name}">${item.name}</span>
+                        </div>
+                        <button class="copy-button" onclick="event.stopPropagation(); copyToClipboard('${item.url}', this)"${isExpired ? ' disabled style="opacity:0.5;"' : ''}>
+                            <svg class="btn-bg-svg"></svg>
+                            <span class="btn-label">${isExpired ? 'Expired' : 'Copy Link'}</span>
+                        </button>
+                    </div>
+                `;
+
+                // Click to open
+                if (!isExpired) {
+                    wrapper.dataset.url = item.url;
+                    wrapper.addEventListener('click', (e) => {
+                        if (e.target.closest('.copy-button')) return;
+                        window.open(item.url, '_blank');
+                    });
+                }
+
+                // Stagger entrance animation
+                wrapper.style.animationDelay = (i * 0.06) + 's';
+
+                grid.appendChild(wrapper);
+            });
+        }
+
+        // Load history on startup
+        renderHistory();
+
+        // Show empty state if no history
+        function updateEmptyState() {
+            const grid = document.getElementById('cardGrid');
+            const existing = grid.querySelector('.empty-state');
+            const cards = grid.querySelectorAll('.card-wrapper:not(.upload-card)');
+            if (cards.length === 0 && !existing) {
+                const empty = document.createElement('div');
+                empty.className = 'empty-state';
+                empty.innerHTML = `
+                    <svg class="rough-plus"></svg>
+                    <div class="empty-state-text">No files yet — upload your first one!</div>
+                `;
+                grid.appendChild(empty);
+                requestAnimationFrame(drawPlusSigns);
+            } else if (cards.length > 0 && existing) {
+                existing.remove();
+            }
+        }
+        updateEmptyState();
+
+        // ========== DRAG & DROP ==========
+        let dragCounter = 0;
+        const uploadRow = document.getElementById('uploadRow');
+        const uploadScrim = document.getElementById('uploadScrim');
+
+        window.addEventListener('dragenter', (e) => {
+            e.preventDefault();
+            dragCounter++;
+            if (dragCounter === 1) {
+                uploadRow.classList.add('active');
+                uploadScrim.classList.add('active');
+            }
+        });
+
+        window.addEventListener('dragover', (e) => e.preventDefault());
+
+        window.addEventListener('dragleave', (e) => {
+            e.preventDefault();
+            dragCounter--;
+            if (dragCounter === 0) {
+                uploadRow.classList.remove('active');
+                uploadScrim.classList.remove('active');
+            }
+        });
+
+        window.addEventListener('drop', (e) => {
+            e.preventDefault();
+            dragCounter = 0;
+            uploadRow.classList.remove('active');
+            uploadScrim.classList.remove('active');
+            if (e.dataTransfer.files.length > 0) {
+                showSettingsModal(e.dataTransfer.files[0]);
+            }
+        });
+
+        uploadScrim.addEventListener('click', () => {
+            uploadRow.classList.remove('active');
+            uploadScrim.classList.remove('active');
+            dragCounter = 0;
+        });
+    </script>
 </body>
 </html>

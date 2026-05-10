@@ -1294,12 +1294,30 @@
             wrapper.className = 'card-wrapper';
             wrapper.dataset.colorIndex = cidx;
 
+            const isImage = ['jpg','jpeg','png','gif','svg','webp'].includes(ext);
+            const isText = ['txt','html','css','js','json','md'].includes(ext);
+            let previewHtml = '';
+            
+            if (isImage) {
+                previewHtml = `<img src="${URL.createObjectURL(file)}" style="width: 80px; height: 80px; object-fit: contain; margin-bottom: 4px;" />`;
+            } else if (isText) {
+                previewHtml = `<div class="text-preview" style="width: 80px; height: 80px; font-size: 0.35rem; font-family: monospace; overflow: hidden; background: #f9f9f9; padding: 6px; border: 1px solid #ddd; text-align: left; white-space: pre-wrap; color: #333; line-height: 1.2;">Loading...</div>`;
+                file.text().then(text => {
+                    setTimeout(() => {
+                        const div = wrapper.querySelector('.text-preview');
+                        if (div) div.textContent = text.slice(0, 150);
+                    }, 0);
+                });
+            } else {
+                previewHtml = `<svg class="rough-icon" data-icon="${iconType}"></svg>`;
+            }
+
             wrapper.innerHTML = `
                 <svg class="card-shadow-svg"></svg>
                 <div class="card-body">
                     <svg class="card-border-svg" data-style="solid"></svg>
                     <div class="file-preview">
-                        <svg class="rough-icon" data-icon="${iconType}"></svg>
+                        ${previewHtml}
                         <span class="file-type-label">${ext}</span>
                         <span class="file-name-label" title="${filename}">${filename}</span>
                         <span class="file-size-label">${fileSize}</span>
@@ -1485,13 +1503,32 @@
                 const isExpired = item.expiresAt && item.expiresAt < Date.now();
                 const { text: ttlText, cls: ttlCls } = fmtTtl(item.expiresAt || 0);
 
+                const isImage = ['jpg','jpeg','png','gif','svg','webp'].includes(ext);
+                const isText = ['txt','html','css','js','json','md'].includes(ext);
+                let previewHtml = '';
+
+                if (isImage) {
+                    previewHtml = `<img src="${item.url}" style="width: 80px; height: 80px; object-fit: contain; margin-bottom: 4px;" />`;
+                } else if (isText) {
+                    previewHtml = `<div class="text-preview" style="width: 80px; height: 80px; font-size: 0.35rem; font-family: monospace; overflow: hidden; background: #f9f9f9; padding: 6px; border: 1px solid #ddd; text-align: left; white-space: pre-wrap; color: #333; line-height: 1.2;">Loading...</div>`;
+                    fetch(item.url).then(r => r.text()).then(text => {
+                        const div = wrapper.querySelector('.text-preview');
+                        if (div) div.textContent = text.slice(0, 150);
+                    }).catch(() => {
+                        const div = wrapper.querySelector('.text-preview');
+                        if (div) div.textContent = 'Error loading';
+                    });
+                } else {
+                    previewHtml = `<svg class="rough-icon" data-icon="${iconType}"></svg>`;
+                }
+
                 wrapper.innerHTML = `
                     <svg class="card-shadow-svg"></svg>
                     <div class="card-body"${isExpired ? ' style="opacity:0.5;"' : ''}>
                         <svg class="card-border-svg" data-style="solid"></svg>
                         <span class="ttl-badge ${ttlCls}" data-expires="${item.expiresAt || 0}">${ttlText}</span>
                         <div class="file-preview">
-                            <svg class="rough-icon" data-icon="${iconType}"></svg>
+                            ${previewHtml}
                             <span class="file-type-label">${ext}</span>
                             <span class="file-name-label" title="${item.name}">${item.name}</span>
                         </div>

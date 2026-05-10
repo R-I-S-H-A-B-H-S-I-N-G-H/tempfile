@@ -78,3 +78,57 @@ export async function deleteObject(storageKey: string) {
 
   return { deleted: true, storageKey };
 }
+
+export async function getPresignedGetUrl(storageKey: string, expiresInSeconds: number = 3600) {
+  const accessKeyId = Deno.env.get("S3_ACCESS_KEY_ID") || "";
+  const secretAccessKey = Deno.env.get("S3_SECRET_ACCESS_KEY") || "";
+  const endpoint = Deno.env.get("S3_ENDPOINT") || "";
+  const region = Deno.env.get("S3_REGION") || "us-east-1";
+  const bucketName = Deno.env.get("S3_BUCKET_NAME") || "";
+
+  if (!accessKeyId || !secretAccessKey || !endpoint || !bucketName) {
+    throw new Error("S3 configuration missing");
+  }
+
+  const aws = new AwsClient({
+    accessKeyId,
+    secretAccessKey,
+    service: "s3",
+    region,
+  });
+
+  const cleanEndpoint = endpoint.replace(/\/$/, "");
+  const url = new URL(`${cleanEndpoint}/${bucketName}/${storageKey}`);
+
+  const signedReq = await aws.sign(url, {
+    method: "GET",
+    aws: { signQuery: true }
+  });
+
+  return signedReq.url;
+}
+
+export async function getObjectResponse(storageKey: string) {
+  const accessKeyId = Deno.env.get("S3_ACCESS_KEY_ID") || "";
+  const secretAccessKey = Deno.env.get("S3_SECRET_ACCESS_KEY") || "";
+  const endpoint = Deno.env.get("S3_ENDPOINT") || "";
+  const region = Deno.env.get("S3_REGION") || "us-east-1";
+  const bucketName = Deno.env.get("S3_BUCKET_NAME") || "";
+
+  if (!accessKeyId || !secretAccessKey || !endpoint || !bucketName) {
+    throw new Error("S3 configuration missing");
+  }
+
+  const aws = new AwsClient({
+    accessKeyId,
+    secretAccessKey,
+    service: "s3",
+    region,
+  });
+
+  const cleanEndpoint = endpoint.replace(/\/$/, "");
+  const url = new URL(`${cleanEndpoint}/${bucketName}/${storageKey}`);
+
+  const res = await aws.fetch(url, { method: "GET" });
+  return res;
+}

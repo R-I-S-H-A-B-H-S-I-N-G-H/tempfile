@@ -1,5 +1,5 @@
 import { Hono } from "npm:hono";
-import { generatePresignedUrl, deleteObject } from "../service/s3.ts";
+import { generatePresignedUrl, deleteObject, getPresignedGetUrl, getObjectResponse } from "../service/s3.ts";
 import { uniqueNamesGenerator, adjectives, colors, animals, names } from "https://esm.sh/unique-names-generator@4.7.1";
 
 const mediaRouter = new Hono();
@@ -167,6 +167,65 @@ mediaRouter.post("/delete-file", async (c) => {
     return c.json({ success: true, deleted: publicUrl });
   } catch (err: any) {
     return c.json({ error: err.message || "Delete failed" }, 500);
+  }
+});
+
+mediaRouter.get("/file/:userid/:filename", async (c) => {
+  const userid = c.req.param("userid");
+  const filename = c.req.param("filename");
+
+  if (!userid || !filename) {
+    return c.json({ error: "userid and filename are required" }, 400);
+  }
+
+  try {
+    const storageKey = `${userid}/${filename}`;
+    const s3Res = await getObjectResponse(storageKey);
+
+    if (!s3Res.ok) {
+      if (s3Res.status === 404) {
+        return c.text("File not found", 404);
+      }
+      return c.json({ error: `S3 error: ${s3Res.status}` }, s3Res.status);
+    }
+
+    // Forward caching and metadata headers
+    const headers = new Headers();
+    const headersToForward = [
+      "content-type",
+      "content-length",
+      "content-disposition",
+      "cache-control",
+      "etag",
+      "last-modified"
+    ];
+
+    for (const h of headersToForward) {
+      const val = s3Res.headers.get(h);
+      if (val) {
+        headers.set(h, val);
+      }
+    }
+
+    // Asynchronously delete the file from R2/S3 now that it is being served
+    const deletePromise = deleteObject(storageKey)
+      .then(() => console.log(`[Proxy] File deleted after serving: ${storageKey}`))
+      .catch(err => console.error(`[Proxy] Failed to delete file after proxying: ${storageKey}`, err));
+
+    // Tell the Edge environment to not kill the thread until deletion is complete
+    if (c.executionCtx && typeof c.executionCtx.waitUntil === 'function') {
+      c.executionCtx.waitUntil(deletePromise);
+    } else {
+      // Fallback if somehow not running in a strict edge isolate
+      deletePromise;
+    }
+
+    return new Response(s3Res.body, {
+      status: 200,
+      headers
+    });
+  } catch (err: any) {
+    return c.json({ error: err.message || "Internal Server Error" }, 500);
   }
 });
 

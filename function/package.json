@@ -1,19 +1,9 @@
 {
-  "name": "es-hono-pet-store",
-  "version": "0.1.1",
+  "name": "media-func",
+  "version": "0.1.0",
   "main": "src/index.ts",
   "type": "module",
   "private": true,
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/BunnyWay/es-hono-pet-store.git"
-  },
-  "keywords": [
-    "github",
-    "bunny"
-  ],
-  "author": "Bunny Devs",
-  "license": "MIT",
   "scripts": {
     "lint": "deno lint",
     "test": "deno test -A src/**/*.test.ts",

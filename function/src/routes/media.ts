@@ -34,7 +34,7 @@ mediaRouter.get("/temp-file-url", async (c) => {
   const secretToken = c.req.query("secretToken");
   const contentLength = c.req.query("contentLength");
 
-  const MIN_CACHE = 86400;     // 1 day
+  const MIN_CACHE = 10;     // 10 secs
   const MAX_CACHE = 604800;    // 1 week
   const MAX_FILE_SIZE = 100 * 1024 * 1024; // 100MB
 

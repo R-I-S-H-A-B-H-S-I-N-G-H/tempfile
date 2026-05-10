@@ -685,6 +685,24 @@
                         </div>
                     </div>
                 </div>
+
+                <!-- Ad Banner Card -->
+                <div class="card-wrapper ad-card" data-color-index="7" onclick="window.open('https://www.profitablecpmratenetwork.com/h3ch9xkhxk?key=21cbe4eb91ce2fb22a6aeaf24a84323e', '_blank')" style="cursor: pointer;">
+                    <svg class="card-shadow-svg"></svg>
+                    <div class="card-body">
+                        <svg class="card-border-svg" data-style="solid"></svg>
+                        <span class="ttl-badge ttl-warn">Ad</span>
+                        <div class="file-preview" style="padding: 0 12px; text-align: center;">
+                            <svg class="rough-icon" data-icon="img"></svg>
+                            <span class="file-type-label" style="color: #fdcb6e;">SPONSOR</span>
+                            <span class="file-name-label" style="white-space: normal; overflow: visible; font-size: 0.8rem; margin-top: 8px; color: var(--ink-black); line-height: 1.3;">If you click this I will get paid to keep it going and free!</span>
+                        </div>
+                        <button class="copy-button" style="pointer-events: none;">
+                            <svg class="btn-bg-svg"></svg>
+                            <span class="btn-label">Support Us</span>
+                        </button>
+                    </div>
+                </div>
             </div>
         </section>
 
@@ -1507,7 +1525,7 @@
         function updateEmptyState() {
             const grid = document.getElementById('cardGrid');
             const existing = grid.querySelector('.empty-state');
-            const cards = grid.querySelectorAll('.card-wrapper:not(.upload-card)');
+            const cards = grid.querySelectorAll('.card-wrapper:not(.upload-card):not(.ad-card)');
             if (cards.length === 0 && !existing) {
                 const empty = document.createElement('div');
                 empty.className = 'empty-state';

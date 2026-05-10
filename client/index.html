@@ -695,7 +695,7 @@
                         <div class="file-preview" style="padding: 0 12px; text-align: center;">
                             <svg class="rough-icon" data-icon="img"></svg>
                             <span class="file-type-label" style="color: #fdcb6e;">SPONSOR</span>
-                            <span class="file-name-label" style="white-space: normal; overflow: visible; font-size: 0.8rem; margin-top: 8px; color: var(--ink-black); line-height: 1.3;">If you click this I will get paid to keep it going and free!</span>
+                            <span id="ad-message" class="file-name-label" style="white-space: normal; overflow: visible; font-size: 0.8rem; margin-top: 8px; color: var(--ink-black); line-height: 1.3;">Click this before we go bankrupt hosting your temporary files. 💸</span>
                         </div>
                         <button class="copy-button" style="pointer-events: none;">
                             <svg class="btn-bg-svg"></svg>
@@ -1618,6 +1618,114 @@
             uploadScrim.classList.remove('active');
             dragCounter = 0;
         });
+
+        // ========== ROTATE AD MESSAGE ==========
+        const adMessages = [
+            "Click this before we go bankrupt hosting your temporary files. 💸",
+            "Servers don't run on good vibes. Help pay the bills! 📉",
+            "Turns out the 'cloud' actually costs real money. Help a dev out. ☁️",
+            "Click this or the server hamsters will starve. 🐹",
+            "Free for you, but my credit card is crying. 💳",
+            "If you don't click, I might have to get a real job. 💼",
+            "Help me fund my coffee addiction. ☕",
+            "Server bills are due and I'm scared. Click please. 😨",
+            "Clicking this burns calories. Probably. 🏃‍♂️",
+            "Your files are ephemeral, but my debt is forever. 💸",
+            "I'm literally paying you to use this. Wait, no. Click this. 🛑",
+            "Help! Jeff Bezos is asking for his AWS money. 📦",
+            "Click here to send a penny to a struggling dev. 🪙",
+            "My wallet hates you right now. Make it better. 😡",
+            "A click a day keeps the 404 away. 🏥",
+            "Your data is free, my therapy for hosting it is not. 🧠",
+            "Every time you don't click, a developer cries. 😢",
+            "Hosting files ain't cheap. Do your part. 🫵",
+            "Click this if you have a soul. 👻",
+            "Spare some change for a poor server admin? 🧢",
+            "Do it for the bandwidth. 🌐",
+            "You like free stuff? Me too. Click this. 🎁",
+            "I sold my soul for this server space. Click to help me buy it back. 👿",
+            "Clicking here is scientifically proven to make you a better person. 🔬",
+            "I run on caffeine and ad clicks. Please provide one of those. ☕",
+            "Help keep the lights on in the server room. 💡",
+            "Clicking this is less painful than paying a subscription. 🔄",
+            "If this site goes down, it's because you didn't click. 📉",
+            "Don't make me add a paywall. I'll do it. 🧱",
+            "Servers need love (and money) too. ❤️",
+            "Click to support independent developers who make bad financial choices. 🤪",
+            "I accept clicks as a form of apology for your large files. 📁",
+            "It takes 1 second to click and 0 seconds to regret it. ⏱️",
+            "My landlord doesn't accept 'good karma' as rent. 🏠",
+            "Give a click, take a file. That's the deal. 🤝",
+            "Click to prevent this site from becoming a 90s Geocities page. 💾",
+            "This ad pays for the electricity used to send you this file. ⚡",
+            "Clicking is caring. Are you careless? 💔",
+            "Save a dev, click an ad. 🛟",
+            "My code is free, the hardware isn't. 💻",
+            "Click this to officially become my favorite user today. 🏆",
+            "I bet you won't click this. Prove me wrong. 🎯",
+            "A click is worth a thousand words (or like, $0.001). 🗣️",
+            "Click to help me upgrade from a potato server. 🥔",
+            "Support my dream of not being broke. 💭",
+            "Click here to absolve your guilt of using free services. 😇",
+            "If you click, I might afford name-brand ramen tonight. 🍜",
+            "Clicking this ad is your good deed for the day. 🌟",
+            "Help me keep this site ad-free... wait. 🤦‍♂️",
+            "Your click keeps the ephemeral dream alive. ✨",
+            "It's either this or I start selling your data. (Kidding... mostly). 🕵️",
+            "Click to fund my inevitable burnout recovery. 🏖️",
+            "If you like fast downloads, you'll love clicking this. 🚀",
+            "Click to pet the virtual server dog. 🐕",
+            "My accountant says I need more clicks. Make him happy. 📊",
+            "Clicking this will make your files transfer 0.00% faster! 🏎️",
+            "Help me afford the 'Pro' tier of my hosting plan. ⬆️",
+            "Click to keep the internet weird and free. 👽",
+            "This click sponsored by my dwindling bank account. 🏦",
+            "Clicking here is practically a charitable donation. 🕊️",
+            "I'm not begging, I'm just aggressively asking. Click. 🙏",
+            "Click to stop the server from crying. 😭",
+            "Clicking this is the tech equivalent of tipping your waiter. 💵",
+            "Your click is the only thing standing between me and bankruptcy. 📉",
+            "Click here to make a dev smile. (Results may vary). 😁",
+            "I'll stop asking when the server bills stop coming. 🛑",
+            "Click to support artisanal, small-batch file hosting. 🏺",
+            "Clicking this helps me buy more hard drives. 💽",
+            "Help me turn this side project into a main project. 🚀",
+            "Click to keep the file sharing magic alive. 🪄",
+            "Every click gets me one step closer to buying a yacht. (Or lunch). 🥪",
+            "Click to tell my mom I have a real business. 👩‍👦",
+            "This ad is the price of admission. Cheap, right? 🎟️",
+            "Click here to validate my existence. 🥺",
+            "I wrote thousands of lines of code for this. A click is the least you can do. ⌨️",
+            "Click to keep the server gremlins at bay. 👹",
+            "Your click helps me avoid getting a real job. 🛑",
+            "Clicking this is like high-fiving a developer. 🖐️",
+            "Help me pay for the coffee that wrote this code. ☕",
+            "Click to prove you're not a robot. 🤖",
+            "Click here to fund my future startup failures. 📉",
+            "I accept clicks, praise, and large sums of cash. 💰",
+            "Click to keep this service running smoothly. 🧈",
+            "Clicking this is good for your karma. 🕉️",
+            "Help me keep this site from joining the Google Graveyard. 🪦",
+            "Click to support my delusions of grandeur. 👑",
+            "This click helps me afford the good Wi-Fi. 📶",
+            "Clicking this ad is a victimless crime. 🕵️‍♂️",
+            "Help me keep this site free from annoying pop-ups. (By clicking this one). 🎈",
+            "Click to make the internet a slightly better place. 🌍",
+            "Your click is the wind beneath my server's wings. 🦅",
+            "Click to help me pay off my student loans. 🎓",
+            "Clicking this is the best decision you'll make today. 🤔",
+            "Help me afford the premium pizza toppings. 🍕",
+            "Click to keep the file transfers blazing fast. 🔥",
+            "This ad click is brought to you by desperation. 😬",
+            "Click to support a developer who should be sleeping right now. 😴",
+            "Help me turn caffeine into code. ☕➡️💻",
+            "Clicking this ad is practically a public service. 🏛️",
+            "Click to keep the ephemeral files ephemeral-ing. 👻"
+        ];
+        const adMessageEl = document.getElementById('ad-message');
+        if (adMessageEl) {
+            adMessageEl.textContent = adMessages[Math.floor(Math.random() * adMessages.length)];
+        }
     </script>
 </body>
 </html>

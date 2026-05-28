@@ -1482,12 +1482,19 @@
         }
 
         function refreshAllTtl() {
-            document.querySelectorAll('.ttl-badge[data-expires]').forEach(badge => {
-                const expiresAt = parseInt(badge.dataset.expires);
+            let justExpired = false;
+            document.querySelectorAll('.ttl-badge[data-expires]').forEach((badge) => {
+                const expiresAt = parseInt(badge.dataset.expires, 10);
+                const wasDead = badge.classList.contains('ttl-dead');
                 const { text, cls } = fmtTtl(expiresAt);
                 badge.textContent = text;
                 badge.className = 'ttl-badge ' + cls;
+                if (!wasDead && cls === 'ttl-dead') justExpired = true;
             });
+            if (justExpired) {
+                CardPins.pruneExpiredUploadPins();
+                renderActivityCards();
+            }
         }
 
         // Refresh TTL labels every 30 seconds
@@ -1571,6 +1578,24 @@
         const HISTORY_KEY = 'media_uploads';
         const PINS_KEY = 'tempfile_pinned_cards';
 
+        function getUploadHistory() {
+            try {
+                const list = JSON.parse(localStorage.getItem(HISTORY_KEY) || '[]');
+                return Array.isArray(list) ? list : [];
+            } catch {
+                return [];
+            }
+        }
+
+        function isUploadExpired(itemOrUrl) {
+            const item =
+                typeof itemOrUrl === 'string'
+                    ? getUploadHistory().find((u) => u.url === itemOrUrl)
+                    : itemOrUrl;
+            if (!item?.url) return true;
+            return Boolean(item.expiresAt && item.expiresAt < Date.now());
+        }
+
         // ========== CARD PINS ==========
         const CardPins = (function () {
             function isValidPin(p) {
@@ -1617,6 +1642,11 @@
                 save(load().filter((p) => !(p.type === type && p.id === id)));
             }
 
+            function pruneExpiredUploadPins() {
+                const next = load().filter((p) => p.type !== 'upload' || !isUploadExpired(p.id));
+                if (next.length !== load().length) save(next);
+            }
+
             function toggle(type, id) {
                 if (!id || typeof id !== 'string') return;
                 let pins = load();
@@ -1624,6 +1654,7 @@
                 if (idx >= 0) {
                     pins.splice(idx, 1);
                 } else {
+                    if (type === 'upload' && isUploadExpired(id)) return;
                     pins.push({ type, id, pinnedAt: Date.now() });
                 }
                 save(pins);
@@ -1633,7 +1664,10 @@
             function compareEntries(a, b) {
                 const pinOf = (entry) => {
                     if (entry.kind === 'draft') return find('draft', entry.data?.id);
-                    if (entry.kind === 'upload') return find('upload', entry.data?.url);
+                    if (entry.kind === 'upload') {
+                        if (isUploadExpired(entry.data)) return null;
+                        return find('upload', entry.data?.url);
+                    }
                     return null;
                 };
                 const pinA = pinOf(a);
@@ -1644,10 +1678,15 @@
                 return b.sortTime - a.sortTime;
             }
 
-            return { isPinned, toggle, removePin, find, compareEntries };
+            return { isPinned, toggle, removePin, find, compareEntries, pruneExpiredUploadPins };
         })();
 
         function attachCardPinButton(wrapper, type, id) {
+            if (type === 'upload' && isUploadExpired(id)) {
+                CardPins.removePin('upload', id);
+                return;
+            }
+
             const pinned = CardPins.find(type, id);
             const btn = document.createElement('button');
             btn.type = 'button';
@@ -2190,9 +2229,10 @@
                     if (e.target.closest('.copy-button, .card-pin-btn')) return;
                     window.open(item.url, '_blank');
                 });
+                attachCardPinButton(wrapper, 'upload', item.url);
+            } else {
+                CardPins.removePin('upload', item.url);
             }
-
-            attachCardPinButton(wrapper, 'upload', item.url);
 
             if (isText) loadTextPreviewWhenVisible(wrapper, item.url);
 
@@ -2222,6 +2262,8 @@
         }
 
         function renderActivityCards() {
+            CardPins.pruneExpiredUploadPins();
+
             const grid = document.getElementById('cardGrid');
             const adCard = grid.querySelector('.ad-card');
             const inFlight = Array.from(grid.querySelectorAll('.activity-card.is-uploading'));

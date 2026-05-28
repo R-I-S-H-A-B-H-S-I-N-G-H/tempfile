@@ -307,6 +307,66 @@
             border-color: #e74c3c;
         }
 
+        .card-pin-btn {
+            position: absolute;
+            top: 6px;
+            left: 6px;
+            right: auto;
+            z-index: 25;
+            width: 26px;
+            height: 26px;
+            padding: 0;
+            border: 1.5px solid #ddd;
+            background: #fff;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            opacity: 0;
+            pointer-events: none;
+            transition: background 0.15s, border-color 0.15s, opacity 0.15s;
+        }
+
+        .card-pin-btn .rough-pin {
+            width: 15px;
+            height: 15px;
+            display: block;
+            pointer-events: none;
+            overflow: visible;
+        }
+
+        .card-wrapper:hover .card-pin-btn,
+        .card-wrapper:focus-within .card-pin-btn,
+        .card-pin-btn:focus-visible {
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        .card-wrapper.is-pinned .card-pin-btn {
+            opacity: 1;
+            pointer-events: auto;
+            background: #e8e4ff;
+            border-color: #a29bfe;
+        }
+
+        .card-pin-btn:hover {
+            background: #f0eeea;
+        }
+
+        .card-wrapper.is-pinned .card-pin-btn:hover {
+            background: #e8e4ff;
+            border-color: #a29bfe;
+        }
+
+        .card-wrapper.is-pinned .card-body {
+            outline: 2px solid #a29bfe;
+            outline-offset: -2px;
+        }
+
+        .draft-card .card-remove-btn {
+            left: 36px;
+        }
+
         /* Empty state */
         .empty-state {
             grid-column: 4 / -1;
@@ -1097,10 +1157,18 @@
             '#fdcb6e', // golden
         ];
 
-        let colorCounter = 1; // start at 1; index 0 used by sample card
+        function colorIndexForFilename(filename) {
+            const name = String(filename || '').trim().toLowerCase();
+            if (!name) return 0;
+            let hash = 0;
+            for (let i = 0; i < name.length; i++) {
+                hash = (Math.imul(31, hash) + name.charCodeAt(i)) | 0;
+            }
+            return Math.abs(hash) % COLORS.length;
+        }
 
         function getCardColor(wrapper) {
-            const idx = parseInt(wrapper.dataset.colorIndex || '0');
+            const idx = parseInt(wrapper.dataset.colorIndex || '0', 10);
             return COLORS[idx % COLORS.length];
         }
 
@@ -1115,6 +1183,7 @@
             drawButtons();
             drawPlusSigns();
             drawIcons();
+            drawPinIcons();
             drawHeaderScribble();
             drawUploadBorder();
         }
@@ -1355,6 +1424,37 @@
             });
         }
 
+        function drawBookmarkIcon(svg, filled) {
+            svg.innerHTML = '';
+            const rc = rough.svg(svg);
+            const w = svg.clientWidth || 15;
+            const h = svg.clientHeight || 15;
+            const pad = 1.5;
+            const stroke = filled ? '#6c5ce7' : '#777';
+            const path = `M ${pad} ${pad} L ${w - pad} ${pad} L ${w - pad} ${h - pad - 1} L ${w / 2} ${h - pad - 4} L ${pad} ${h - pad - 1} Z`;
+            const cfg = { ...ROUGH_BASE, stroke, strokeWidth: 1.6, seed: 41 };
+            svg.appendChild(
+                rc.path(path, filled ? {
+                    ...cfg,
+                    fill: '#a29bfe',
+                    fillStyle: 'zigzag',
+                    hachureGap: 2.5,
+                    fillWeight: 1.1,
+                } : cfg)
+            );
+        }
+
+        function drawPinIcons() {
+            document.querySelectorAll('.rough-pin').forEach((svg) => {
+                const btn = svg.closest('.card-pin-btn');
+                const filled = Boolean(
+                    btn?.classList.contains('is-active') ||
+                    btn?.closest('.card-wrapper')?.classList.contains('is-pinned')
+                );
+                drawBookmarkIcon(svg, filled);
+            });
+        }
+
         // ========== RESIZE OBSERVER ==========
         const ro = new ResizeObserver(() => scheduleDrawAll());
 
@@ -1469,6 +1569,108 @@
         // ========== API CONFIG ==========
         const API_URL = 'https://tmp-file-media-func-4epls.bunny.run';
         const HISTORY_KEY = 'media_uploads';
+        const PINS_KEY = 'tempfile_pinned_cards';
+
+        // ========== CARD PINS ==========
+        const CardPins = (function () {
+            function isValidPin(p) {
+                return (
+                    p &&
+                    (p.type === 'draft' || p.type === 'upload') &&
+                    typeof p.id === 'string' &&
+                    p.id.trim().length > 0 &&
+                    Number.isFinite(p.pinnedAt)
+                );
+            }
+
+            function load() {
+                try {
+                    const parsed = JSON.parse(localStorage.getItem(PINS_KEY) || '[]');
+                    if (!Array.isArray(parsed)) {
+                        save([]);
+                        return [];
+                    }
+                    const pins = parsed.filter(isValidPin);
+                    if (pins.length !== parsed.length) save(pins);
+                    return pins;
+                } catch {
+                    save([]);
+                    return [];
+                }
+            }
+
+            function save(pins) {
+                localStorage.setItem(PINS_KEY, JSON.stringify(pins.filter(isValidPin)));
+            }
+
+            function find(type, id) {
+                if (!id || typeof id !== 'string') return null;
+                return load().find((p) => p.type === type && p.id === id) || null;
+            }
+
+            function isPinned(type, id) {
+                return find(type, id) !== null;
+            }
+
+            function removePin(type, id) {
+                if (!id) return;
+                save(load().filter((p) => !(p.type === type && p.id === id)));
+            }
+
+            function toggle(type, id) {
+                if (!id || typeof id !== 'string') return;
+                let pins = load();
+                const idx = pins.findIndex((p) => p.type === type && p.id === id);
+                if (idx >= 0) {
+                    pins.splice(idx, 1);
+                } else {
+                    pins.push({ type, id, pinnedAt: Date.now() });
+                }
+                save(pins);
+                renderActivityCards();
+            }
+
+            function compareEntries(a, b) {
+                const pinOf = (entry) => {
+                    if (entry.kind === 'draft') return find('draft', entry.data?.id);
+                    if (entry.kind === 'upload') return find('upload', entry.data?.url);
+                    return null;
+                };
+                const pinA = pinOf(a);
+                const pinB = pinOf(b);
+                if (pinA && !pinB) return -1;
+                if (!pinA && pinB) return 1;
+                if (pinA && pinB) return pinB.pinnedAt - pinA.pinnedAt;
+                return b.sortTime - a.sortTime;
+            }
+
+            return { isPinned, toggle, removePin, find, compareEntries };
+        })();
+
+        function attachCardPinButton(wrapper, type, id) {
+            const pinned = CardPins.find(type, id);
+            const btn = document.createElement('button');
+            btn.type = 'button';
+            btn.className = 'card-pin-btn' + (pinned ? ' is-active' : '');
+            btn.title = pinned ? 'Unpin' : 'Pin to top';
+            btn.setAttribute('aria-label', btn.title);
+            btn.setAttribute('aria-pressed', pinned ? 'true' : 'false');
+            btn.innerHTML = '<svg class="rough-pin" aria-hidden="true"></svg>';
+
+            wrapper.classList.remove('is-pinned');
+            delete wrapper.dataset.pinnedAt;
+
+            if (pinned) {
+                wrapper.classList.add('is-pinned');
+                wrapper.dataset.pinnedAt = String(pinned.pinnedAt);
+            }
+
+            btn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                CardPins.toggle(type, id);
+            });
+            wrapper.appendChild(btn);
+        }
 
         // ========== UPLOAD CONFIG ==========
         const UPLOAD_CONFIG = {
@@ -1710,6 +1912,7 @@
             function removeDraft(id) {
                 if (!id) return;
                 saveDraftsList(loadDrafts().filter((d) => d.id !== id));
+                CardPins.removePin('draft', id);
             }
 
             function upsertDraft(draft) {
@@ -1896,7 +2099,7 @@
             wrapper.className = 'card-wrapper draft-card card-restored activity-card';
             wrapper.dataset.draftId = draft.id;
             wrapper.dataset.sortTime = String(draft.updatedAt || Date.now());
-            wrapper.dataset.colorIndex = '5';
+            wrapper.dataset.colorIndex = String(colorIndexForFilename(draft.filename));
 
             wrapper.innerHTML = `
                 <button type="button" class="card-remove-btn" title="Remove draft" aria-label="Remove draft">×</button>
@@ -1930,9 +2133,11 @@
             });
 
             wrapper.addEventListener('click', (e) => {
-                if (e.target.closest('.card-remove-btn')) return;
+                if (e.target.closest('.card-remove-btn, .card-pin-btn')) return;
                 FileEditor.open({ draftId: draft.id, silent: true });
             });
+
+            attachCardPinButton(wrapper, 'draft', draft.id);
 
             return wrapper;
         }
@@ -1940,8 +2145,7 @@
         function createUploadHistoryCardElement(item) {
             const ext = item.name.split('.').pop().toLowerCase();
             const iconType = getIconType(ext);
-            const cidx = colorCounter % COLORS.length;
-            colorCounter++;
+            const cidx = colorIndexForFilename(item.name);
 
             const wrapper = document.createElement('div');
             wrapper.className = 'card-wrapper card-restored activity-card';
@@ -1983,10 +2187,12 @@
             if (!isExpired) {
                 wrapper.dataset.url = item.url;
                 wrapper.addEventListener('click', (e) => {
-                    if (e.target.closest('.copy-button')) return;
+                    if (e.target.closest('.copy-button, .card-pin-btn')) return;
                     window.open(item.url, '_blank');
                 });
             }
+
+            attachCardPinButton(wrapper, 'upload', item.url);
 
             if (isText) loadTextPreviewWhenVisible(wrapper, item.url);
 
@@ -1998,7 +2204,16 @@
             const adCard = grid.querySelector('.ad-card');
             if (!adCard) return;
             const cards = Array.from(grid.querySelectorAll('.activity-card'));
-            cards.sort((a, b) => Number(b.dataset.sortTime || 0) - Number(a.dataset.sortTime || 0));
+            cards.sort((a, b) => {
+                const pinA = a.classList.contains('is-pinned');
+                const pinB = b.classList.contains('is-pinned');
+                if (pinA && !pinB) return -1;
+                if (!pinA && pinB) return 1;
+                if (pinA && pinB) {
+                    return Number(b.dataset.pinnedAt || 0) - Number(a.dataset.pinnedAt || 0);
+                }
+                return Number(b.dataset.sortTime || 0) - Number(a.dataset.sortTime || 0);
+            });
             let anchor = adCard;
             cards.forEach((card) => {
                 anchor.insertAdjacentElement('afterend', card);
@@ -2037,7 +2252,7 @@
                 });
             });
 
-            entries.sort((a, b) => b.sortTime - a.sortTime);
+            entries.sort((a, b) => CardPins.compareEntries(a, b));
 
             const fragment = document.createDocumentFragment();
             entries.forEach((entry) => {
@@ -2412,8 +2627,7 @@
             const grid = document.getElementById('cardGrid');
             const ext = filename.split('.').pop().toLowerCase();
             const iconType = getIconType(ext);
-            const cidx = colorCounter % COLORS.length;
-            colorCounter++;
+            const cidx = colorIndexForFilename(filename);
 
             // Create the card immediately in a "loading" state
             const wrapper = document.createElement('div');
@@ -2576,9 +2790,12 @@
                 // Store URL on wrapper for click-to-open
                 wrapper.dataset.url = finalUrl;
                 wrapper.addEventListener('click', (e) => {
-                    if (e.target.closest('.copy-button')) return;
+                    if (e.target.closest('.copy-button, .card-pin-btn')) return;
                     window.open(finalUrl, '_blank');
                 });
+                if (!wrapper.querySelector('.card-pin-btn')) {
+                    attachCardPinButton(wrapper, 'upload', finalUrl);
+                }
 
                 showToast('✓ File uploaded successfully!');
 

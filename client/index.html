@@ -667,7 +667,7 @@
             <div class="upload-area" onclick="document.getElementById('fileInput').click()">
                 <svg class="card-border-svg upload-border-svg"></svg>
                 <svg class="rough-plus"></svg>
-                <p>Drop your file here</p>
+                <p>Drop your files here</p>
             </div>
         </section>
 
@@ -681,7 +681,7 @@
                         <div class="file-preview">
                             <svg class="rough-plus"></svg>
                             <span class="upload-label">Upload File</span>
-                            <span class="upload-sublabel">or drag & drop anywhere</span>
+                            <span class="upload-sublabel">or drag & drop multiple files</span>
                         </div>
                     </div>
                 </div>
@@ -1149,6 +1149,17 @@
         const API_URL = 'https://tmp-file-media-func-4epls.bunny.run';
         const HISTORY_KEY = 'media_uploads';
 
+        // ========== UPLOAD CONFIG ==========
+        const UPLOAD_CONFIG = {
+            DEFAULT_TTL_SECONDS: 86400,
+            DROP: {
+                TTL_SECONDS: 259200, // 3 days
+                MAX_FILES: 10,
+                DISPOSITION: 'inline',
+                RANDOM_PREFIX_LENGTH: 8,
+            },
+        };
+
         // Identity — persist a secret token per browser
         let secretToken = localStorage.getItem('media_secret_token');
         if (!secretToken) {
@@ -1202,7 +1213,9 @@
             const activeDisp = document.querySelector('.seg-btn.active');
             const disposition = activeDisp ? activeDisp.dataset.disp : 'inline';
             const activeExpiry = document.querySelector('.expiry-chip.active');
-            const cacheDuration = activeExpiry ? parseInt(activeExpiry.dataset.val) : 86400;
+            const cacheDuration = activeExpiry
+                ? parseInt(activeExpiry.dataset.val, 10)
+                : UPLOAD_CONFIG.DEFAULT_TTL_SECONDS;
             return { filename, disposition, cacheDuration };
         }
 
@@ -1250,17 +1263,6 @@
             uploadFile(file, settings);
         });
 
-        // ========== FILE INPUT ==========
-        document.getElementById('fileInput').addEventListener('change', function() {
-            if (this.files.length > 0) {
-                const file = this.files[0];
-                document.getElementById('uploadRow').classList.remove('active');
-                document.getElementById('uploadScrim').classList.remove('active');
-                this.value = '';
-                showSettingsModal(file);
-            }
-        });
-
         // ========== FILE TYPE DETECTION ==========
         function getIconType(ext) {
             if (['jpg','jpeg','png','gif','svg','webp','bmp'].includes(ext)) return 'img';
@@ -1276,10 +1278,98 @@
             return (b / 1048576).toFixed(1) + ' MB';
         }
 
+        // ========== DRAG-AND-DROP UPLOAD ==========
+        const DragDropUpload = (function () {
+            const { DROP } = UPLOAD_CONFIG;
+
+            function randomPrefixedFilename(name) {
+                const code = crypto.randomUUID().replace(/-/g, '').slice(0, DROP.RANDOM_PREFIX_LENGTH);
+                return `${code}_${name}`;
+            }
+
+            function buildUploadSettings(file) {
+                return {
+                    filename: randomPrefixedFilename(file.name),
+                    cacheDuration: DROP.TTL_SECONDS,
+                    disposition: DROP.DISPOSITION,
+                };
+            }
+
+            function readAllDirectoryEntries(reader) {
+                return new Promise((resolve, reject) => {
+                    const entries = [];
+                    const readNextBatch = () => {
+                        reader.readEntries((batch) => {
+                            if (!batch.length) {
+                                Promise.all(entries.map(entryToFiles))
+                                    .then((groups) => resolve(groups.flat()))
+                                    .catch(reject);
+                                return;
+                            }
+                            entries.push(...batch);
+                            readNextBatch();
+                        }, reject);
+                    };
+                    readNextBatch();
+                });
+            }
+
+            function entryToFiles(entry) {
+                if (entry.isFile) {
+                    return new Promise((resolve, reject) => {
+                        entry.file((file) => resolve([file]), reject);
+                    });
+                }
+                if (entry.isDirectory) {
+                    return readAllDirectoryEntries(entry.createReader());
+                }
+                return Promise.resolve([]);
+            }
+
+            function itemToFiles(item) {
+                if (item.kind !== 'file') return Promise.resolve([]);
+                const entry = item.webkitGetAsEntry?.() ?? item.getAsEntry?.();
+                if (entry) return entryToFiles(entry);
+                const file = item.getAsFile();
+                return Promise.resolve(file ? [file] : []);
+            }
+
+            function collectFromDataTransfer(dataTransfer) {
+                const { items, files } = dataTransfer;
+                if (items?.length) {
+                    const tasks = Array.from(items, itemToFiles);
+                    if (tasks.length) {
+                        return Promise.all(tasks).then((groups) => groups.flat());
+                    }
+                }
+                return Promise.resolve([...files]);
+            }
+
+            function isValidFile(file) {
+                return Boolean(file?.name && (file.size > 0 || file.type));
+            }
+
+            function limitFileBatch(files) {
+                if (files.length <= DROP.MAX_FILES) return files;
+                showToast(
+                    `Only ${DROP.MAX_FILES} files at a time — uploading the first ${DROP.MAX_FILES}`
+                );
+                return files.slice(0, DROP.MAX_FILES);
+            }
+
+            async function handleDrop(dataTransfer) {
+                const collected = await collectFromDataTransfer(dataTransfer);
+                const files = limitFileBatch(collected.filter(isValidFile));
+                files.forEach((file) => uploadFile(file, buildUploadSettings(file)));
+            }
+
+            return { handleDrop };
+        })();
+
         // ========== UPLOAD FILE ==========
         async function uploadFile(file, settings = {}) {
-            const cacheDuration = settings.cacheDuration || 86400;
-            const disposition = settings.disposition || 'inline';
+            const cacheDuration = settings.cacheDuration ?? UPLOAD_CONFIG.DEFAULT_TTL_SECONDS;
+            const disposition = settings.disposition ?? 'inline';
             const filename = settings.filename || file.name;
             const fileSize = fmtSize(file.size);
 
@@ -1578,45 +1668,58 @@
         }
         updateEmptyState();
 
-        // ========== DRAG & DROP ==========
-        let dragCounter = 0;
-        const uploadRow = document.getElementById('uploadRow');
-        const uploadScrim = document.getElementById('uploadScrim');
+        // ========== DRAG OVERLAY UI ==========
+        const DragOverlay = (function () {
+            let nestedDragCount = 0;
+            const row = document.getElementById('uploadRow');
+            const scrim = document.getElementById('uploadScrim');
 
-        window.addEventListener('dragenter', (e) => {
-            e.preventDefault();
-            dragCounter++;
-            if (dragCounter === 1) {
-                uploadRow.classList.add('active');
-                uploadScrim.classList.add('active');
+            function setActive(active) {
+                row.classList.toggle('active', active);
+                scrim.classList.toggle('active', active);
             }
-        });
 
-        window.addEventListener('dragover', (e) => e.preventDefault());
-
-        window.addEventListener('dragleave', (e) => {
-            e.preventDefault();
-            dragCounter--;
-            if (dragCounter === 0) {
-                uploadRow.classList.remove('active');
-                uploadScrim.classList.remove('active');
+            function hide() {
+                nestedDragCount = 0;
+                setActive(false);
             }
-        });
 
-        window.addEventListener('drop', (e) => {
-            e.preventDefault();
-            dragCounter = 0;
-            uploadRow.classList.remove('active');
-            uploadScrim.classList.remove('active');
-            if (e.dataTransfer.files.length > 0) {
-                showSettingsModal(e.dataTransfer.files[0]);
+            function init() {
+                window.addEventListener('dragenter', (e) => {
+                    e.preventDefault();
+                    nestedDragCount++;
+                    if (nestedDragCount === 1) setActive(true);
+                });
+
+                window.addEventListener('dragover', (e) => e.preventDefault());
+
+                window.addEventListener('dragleave', (e) => {
+                    e.preventDefault();
+                    nestedDragCount--;
+                    if (nestedDragCount === 0) setActive(false);
+                });
+
+                window.addEventListener('drop', (e) => {
+                    e.preventDefault();
+                    hide();
+                    DragDropUpload.handleDrop(e.dataTransfer);
+                });
+
+                scrim.addEventListener('click', hide);
             }
-        });
 
-        uploadScrim.addEventListener('click', () => {
-            uploadRow.classList.remove('active');
-            uploadScrim.classList.remove('active');
-            dragCounter = 0;
+            return { hide, init };
+        })();
+
+        DragOverlay.init();
+
+        // ========== FILE INPUT ==========
+        document.getElementById('fileInput').addEventListener('change', function() {
+            const file = this.files[0];
+            if (!file) return;
+            DragOverlay.hide();
+            this.value = '';
+            showSettingsModal(file);
         });
 
         // ========== ROTATE AD MESSAGE ==========

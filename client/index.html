@@ -381,6 +381,65 @@
             letter-spacing: 0.5px;
         }
 
+        .editor-card .file-preview {
+            color: var(--ink-black);
+        }
+
+        .editor-icon {
+            font-family: 'Caveat', cursive;
+            font-size: 2.4rem;
+            font-weight: 700;
+            line-height: 1;
+        }
+
+        .editor-textarea {
+            width: 100%;
+            min-height: 280px;
+            resize: vertical;
+            border: 1.5px solid #ddd;
+            border-radius: 0;
+            padding: 12px;
+            font-family: ui-monospace, 'Cascadia Code', 'Source Code Pro', Menlo, monospace;
+            font-size: 0.8rem;
+            line-height: 1.5;
+            color: var(--ink-black);
+            background: #faf8f5;
+            outline: none;
+            tab-size: 2;
+        }
+
+        .editor-textarea:focus {
+            border-color: #a29bfe;
+        }
+
+        .editor-filename-row {
+            display: flex;
+            gap: 8px;
+            align-items: stretch;
+        }
+
+        .editor-filename-row .setting-input {
+            flex: 1;
+        }
+
+        .format-chip {
+            padding: 6px 12px;
+            border: 1.5px solid #ddd;
+            background: #faf8f5;
+            font-family: 'Inter', sans-serif;
+            font-size: 0.72rem;
+            font-weight: 600;
+            color: #888;
+            cursor: pointer;
+            transition: all 0.15s;
+        }
+
+        .format-chip.active {
+            background: var(--ink-black);
+            border-color: var(--ink-black);
+            color: white;
+        }
+
         .rough-plus {
             width: 46px;
             height: 46px;
@@ -468,6 +527,10 @@
             max-width: 420px;
             position: relative;
             padding: 32px 28px 24px;
+        }
+
+        .modal-card-wide {
+            max-width: 640px;
         }
 
         .modal-border-svg {
@@ -686,6 +749,19 @@
                     </div>
                 </div>
 
+                <!-- Editor card -->
+                <div class="card-wrapper upload-card editor-card" id="editorCard">
+                    <svg class="card-shadow-svg"></svg>
+                    <div class="card-body">
+                        <svg class="card-border-svg" data-style="dashed"></svg>
+                        <div class="file-preview">
+                            <span class="editor-icon" aria-hidden="true">✎</span>
+                            <span class="upload-label">Create File</span>
+                            <span class="upload-sublabel">write in the editor</span>
+                        </div>
+                    </div>
+                </div>
+
                 <!-- Ad Banner Card -->
                 <div class="card-wrapper ad-card" data-color-index="7" onclick="window.open('https://www.profitablecpmratenetwork.com/h3ch9xkhxk?key=21cbe4eb91ce2fb22a6aeaf24a84323e', '_blank')" style="cursor: pointer;">
                     <svg class="card-shadow-svg"></svg>
@@ -705,6 +781,46 @@
                 </div>
             </div>
         </section>
+
+        <!-- Editor Modal -->
+        <div class="modal-overlay" id="editorModal">
+            <div class="modal-card modal-card-wide">
+                <svg class="modal-border-svg"></svg>
+                <div class="modal-content">
+                    <div class="modal-title">Create a file</div>
+                    <p class="modal-filename">Type or paste content, then continue to upload settings.</p>
+
+                    <div class="setting-row">
+                        <div class="setting-label">File name</div>
+                        <div class="editor-filename-row">
+                            <input type="text" class="setting-input" id="editorFilename" value="note.txt" autocomplete="off" spellcheck="false">
+                        </div>
+                    </div>
+
+                    <div class="setting-row">
+                        <div class="setting-label">Format</div>
+                        <div class="expiry-presets" id="editorFormatChips">
+                            <button type="button" class="format-chip active" data-ext="txt">.txt</button>
+                            <button type="button" class="format-chip" data-ext="md">.md</button>
+                            <button type="button" class="format-chip" data-ext="json">.json</button>
+                            <button type="button" class="format-chip" data-ext="html">.html</button>
+                            <button type="button" class="format-chip" data-ext="js">.js</button>
+                            <button type="button" class="format-chip" data-ext="css">.css</button>
+                        </div>
+                    </div>
+
+                    <div class="setting-row">
+                        <div class="setting-label">Content</div>
+                        <textarea class="editor-textarea" id="editorContent" placeholder="Start typing…"></textarea>
+                    </div>
+
+                    <div class="modal-actions">
+                        <button type="button" class="modal-btn modal-btn-cancel" id="editorCancel">Cancel</button>
+                        <button type="button" class="modal-btn modal-btn-upload" id="editorContinue">Continue →</button>
+                    </div>
+                </div>
+            </div>
+        </div>
 
         <!-- Settings Modal -->
         <div class="modal-overlay" id="settingsModal">
@@ -1158,6 +1274,10 @@
                 DISPOSITION: 'inline',
                 RANDOM_PREFIX_LENGTH: 8,
             },
+            EDITOR: {
+                DEFAULT_FILENAME: 'note.txt',
+                DEFAULT_EXTENSION: 'txt',
+            },
         };
 
         // Identity — persist a secret token per browser
@@ -1169,6 +1289,22 @@
 
         // ========== FILE STAGING ==========
         let pendingFile = null;
+
+        function drawModalBorder(modalEl) {
+            requestAnimationFrame(() => {
+                const svg = modalEl.querySelector('.modal-border-svg');
+                if (!svg) return;
+                svg.innerHTML = '';
+                const rc = rough.svg(svg);
+                const w = svg.clientWidth;
+                const h = svg.clientHeight;
+                svg.appendChild(rc.rectangle(1, 1, w - 2, h - 2, {
+                    ...ROUGH_BASE,
+                    stroke: '#2d2d2d',
+                    strokeWidth: 2.5,
+                }));
+            });
+        }
 
         function showSettingsModal(file) {
             pendingFile = file;
@@ -1185,22 +1321,7 @@
 
             const modal = document.getElementById('settingsModal');
             modal.classList.add('active');
-
-            // Draw modal border
-            requestAnimationFrame(() => {
-                const svg = modal.querySelector('.modal-border-svg');
-                if (svg) {
-                    svg.innerHTML = '';
-                    const rc = rough.svg(svg);
-                    const w = svg.clientWidth;
-                    const h = svg.clientHeight;
-                    svg.appendChild(rc.rectangle(1, 1, w - 2, h - 2, {
-                        ...ROUGH_BASE,
-                        stroke: '#2d2d2d',
-                        strokeWidth: 2.5,
-                    }));
-                }
-            });
+            drawModalBorder(modal);
         }
 
         function closeSettingsModal() {
@@ -1243,8 +1364,113 @@
             if (e.target === e.currentTarget) closeSettingsModal();
         });
 
-        // Keyboard shortcuts for modal
+        // ========== FILE EDITOR ==========
+        const FileEditor = (function () {
+            const { EDITOR } = UPLOAD_CONFIG;
+            const modal = document.getElementById('editorModal');
+            const filenameInput = document.getElementById('editorFilename');
+            const contentInput = document.getElementById('editorContent');
+            const formatChips = document.getElementById('editorFormatChips');
+
+            const MIME_BY_EXT = {
+                txt: 'text/plain',
+                md: 'text/markdown',
+                json: 'application/json',
+                html: 'text/html',
+                js: 'text/javascript',
+                css: 'text/css',
+            };
+
+            function mimeForFilename(name) {
+                const ext = name.includes('.') ? name.split('.').pop().toLowerCase() : '';
+                return MIME_BY_EXT[ext] || 'text/plain';
+            }
+
+            function stripExtension(name) {
+                const i = name.lastIndexOf('.');
+                return i > 0 ? name.slice(0, i) : name;
+            }
+
+            function setFormatExtension(ext) {
+                formatChips.querySelectorAll('.format-chip').forEach((chip) => {
+                    chip.classList.toggle('active', chip.dataset.ext === ext);
+                });
+                const base = stripExtension(filenameInput.value.trim()) || 'note';
+                filenameInput.value = `${base}.${ext}`;
+            }
+
+            function resetForm() {
+                filenameInput.value = EDITOR.DEFAULT_FILENAME;
+                contentInput.value = '';
+                setFormatExtension(EDITOR.DEFAULT_EXTENSION);
+            }
+
+            function createFile(filename, content) {
+                const type = mimeForFilename(filename);
+                return new File([content], filename, { type, lastModified: Date.now() });
+            }
+
+            function open() {
+                resetForm();
+                modal.classList.add('active');
+                drawModalBorder(modal);
+                contentInput.focus();
+            }
+
+            function close() {
+                modal.classList.remove('active');
+            }
+
+            function continueToUpload() {
+                const content = contentInput.value;
+                if (!content.trim()) {
+                    showToast('Add some content before continuing');
+                    contentInput.focus();
+                    return;
+                }
+                let filename = filenameInput.value.trim();
+                if (!filename) {
+                    showToast('Enter a file name');
+                    filenameInput.focus();
+                    return;
+                }
+                if (!filename.includes('.')) {
+                    const active = formatChips.querySelector('.format-chip.active');
+                    const ext = active?.dataset.ext || EDITOR.DEFAULT_EXTENSION;
+                    filename = `${filename}.${ext}`;
+                }
+                const file = createFile(filename, content);
+                close();
+                showSettingsModal(file);
+            }
+
+            function init() {
+                document.getElementById('editorCard').addEventListener('click', open);
+                document.getElementById('editorCancel').addEventListener('click', close);
+                document.getElementById('editorContinue').addEventListener('click', continueToUpload);
+                modal.addEventListener('click', (e) => {
+                    if (e.target === modal) close();
+                });
+                formatChips.querySelectorAll('.format-chip').forEach((chip) => {
+                    chip.addEventListener('click', () => setFormatExtension(chip.dataset.ext));
+                });
+            }
+
+            return { open, close, continueToUpload, init, isOpen: () => modal.classList.contains('active') };
+        })();
+
+        FileEditor.init();
+
+        // Keyboard shortcuts for modals
         document.addEventListener('keydown', (e) => {
+            if (FileEditor.isOpen()) {
+                if (e.key === 'Escape') FileEditor.close();
+                if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
+                    e.preventDefault();
+                    FileEditor.continueToUpload();
+                }
+                return;
+            }
             const modal = document.getElementById('settingsModal');
             if (!modal.classList.contains('active')) return;
             if (e.key === 'Escape') closeSettingsModal();

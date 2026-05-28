@@ -440,6 +440,103 @@
             color: white;
         }
 
+        /* --- COMMAND PALETTE --- */
+        .command-palette-overlay {
+            position: fixed;
+            inset: 0;
+            z-index: 3000;
+            display: none;
+            align-items: flex-start;
+            justify-content: center;
+            padding: 12vh 20px 20px;
+            background: rgba(0, 0, 0, 0.35);
+        }
+
+        .command-palette-overlay.active {
+            display: flex;
+        }
+
+        .command-palette {
+            width: 100%;
+            max-width: 480px;
+            background: white;
+            border: 2px solid var(--ink-black);
+            box-shadow: 8px 8px 0 rgba(45, 45, 45, 0.15);
+        }
+
+        .command-palette-input {
+            width: 100%;
+            border: none;
+            border-bottom: 1.5px solid #eee;
+            padding: 16px 18px;
+            font-family: 'Inter', sans-serif;
+            font-size: 0.95rem;
+            color: var(--ink-black);
+            background: #faf8f5;
+            outline: none;
+        }
+
+        .command-palette-input::placeholder {
+            color: #bbb;
+        }
+
+        .command-palette-list {
+            list-style: none;
+            margin: 0;
+            padding: 6px 0;
+            max-height: 320px;
+            overflow-y: auto;
+        }
+
+        .command-palette-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            padding: 10px 18px;
+            cursor: pointer;
+            transition: background 0.1s;
+        }
+
+        .command-palette-item:hover,
+        .command-palette-item.is-selected {
+            background: #f0eeea;
+        }
+
+        .command-palette-item.is-selected {
+            background: #e8e4ff;
+        }
+
+        .command-palette-label {
+            font-size: 0.88rem;
+            font-weight: 600;
+            color: var(--ink-black);
+        }
+
+        .command-palette-hint {
+            font-size: 0.68rem;
+            color: #aaa;
+            flex-shrink: 0;
+        }
+
+        .command-palette-empty {
+            padding: 20px 18px;
+            font-size: 0.82rem;
+            color: #aaa;
+            text-align: center;
+        }
+
+        .command-palette-footer {
+            display: flex;
+            gap: 14px;
+            padding: 10px 18px;
+            border-top: 1.5px solid #eee;
+            font-size: 0.65rem;
+            color: #bbb;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
         .rough-plus {
             width: 46px;
             height: 46px;
@@ -720,7 +817,7 @@
             <svg class="header-scribble"></svg>
             <div>
                 <h1>tempfile</h1>
-                <div class="site-subtitle">Share files temporarily — they expire automatically</div>
+                <div class="site-subtitle" id="siteSubtitle">Share files temporarily — they expire automatically</div>
             </div>
         </header>
 
@@ -781,6 +878,29 @@
                 </div>
             </div>
         </section>
+
+        <!-- Command palette -->
+        <div class="command-palette-overlay" id="commandPalette" role="dialog" aria-modal="true" aria-label="Search actions">
+            <div class="command-palette">
+                <input
+                    type="text"
+                    class="command-palette-input"
+                    id="commandPaletteInput"
+                    placeholder="Search actions…"
+                    autocomplete="off"
+                    spellcheck="false"
+                    aria-controls="commandPaletteList"
+                    aria-autocomplete="list"
+                >
+                <ul class="command-palette-list" id="commandPaletteList" role="listbox"></ul>
+                <div class="command-palette-footer">
+                    <span id="commandPaletteOpenHint">Ctrl+/ open</span>
+                    <span>↑↓ navigate</span>
+                    <span>↵ run</span>
+                    <span>esc close</span>
+                </div>
+            </div>
+        </div>
 
         <!-- Editor Modal -->
         <div class="modal-overlay" id="editorModal">
@@ -1461,24 +1581,225 @@
 
         FileEditor.init();
 
-        // Keyboard shortcuts for modals
-        document.addEventListener('keydown', (e) => {
-            if (FileEditor.isOpen()) {
-                if (e.key === 'Escape') FileEditor.close();
-                if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
-                    e.preventDefault();
-                    FileEditor.continueToUpload();
+        // ========== COMMAND PALETTE ==========
+        const CommandPalette = (function () {
+            const IS_MAC = /Mac|iPhone|iPod|iPad/i.test(navigator.platform);
+            const overlay = document.getElementById('commandPalette');
+            const input = document.getElementById('commandPaletteInput');
+            const listEl = document.getElementById('commandPaletteList');
+            const fileInput = document.getElementById('fileInput');
+
+            let filteredActions = [];
+            let selectedIndex = 0;
+
+            function getActions() {
+                const actions = [
+                    {
+                        id: 'upload',
+                        label: 'Upload file',
+                        keywords: 'add pick choose open browse',
+                        run: () => fileInput.click(),
+                    },
+                    {
+                        id: 'editor',
+                        label: 'Create file in editor',
+                        keywords: 'new write text note code',
+                        run: () => FileEditor.open(),
+                    },
+                ];
+
+                if (FileEditor.isOpen()) {
+                    actions.unshift({
+                        id: 'editor-continue',
+                        label: 'Continue to upload settings',
+                        keywords: 'save next submit',
+                        run: () => FileEditor.continueToUpload(),
+                    });
                 }
-                return;
+
+                const settingsModal = document.getElementById('settingsModal');
+                if (settingsModal.classList.contains('active') && pendingFile) {
+                    actions.unshift({
+                        id: 'upload-confirm',
+                        label: 'Confirm upload',
+                        keywords: 'save submit send',
+                        run: () => document.getElementById('modalUpload').click(),
+                    });
+                }
+
+                if (FileEditor.isOpen()) {
+                    actions.push({
+                        id: 'editor-close',
+                        label: 'Close editor',
+                        keywords: 'cancel dismiss exit',
+                        run: () => FileEditor.close(),
+                    });
+                }
+
+                if (settingsModal.classList.contains('active')) {
+                    actions.push({
+                        id: 'upload-close',
+                        label: 'Close upload settings',
+                        keywords: 'cancel dismiss exit',
+                        run: () => closeSettingsModal(),
+                    });
+                }
+
+                return actions;
             }
-            const modal = document.getElementById('settingsModal');
-            if (!modal.classList.contains('active')) return;
-            if (e.key === 'Escape') closeSettingsModal();
-            if (e.key === 'Enter' && pendingFile) {
-                e.preventDefault();
-                document.getElementById('modalUpload').click();
+
+            function matchesQuery(action, query) {
+                if (!query) return true;
+                const haystack = `${action.label} ${action.keywords || ''}`.toLowerCase();
+                return query.split(/\s+/).every((term) => haystack.includes(term));
             }
-        });
+
+            function filterActions(query) {
+                return getActions().filter((action) => matchesQuery(action, query));
+            }
+
+            function render(query) {
+                filteredActions = filterActions(query.trim().toLowerCase());
+                if (selectedIndex >= filteredActions.length) {
+                    selectedIndex = Math.max(0, filteredActions.length - 1);
+                }
+
+                if (!filteredActions.length) {
+                    listEl.innerHTML = '<li class="command-palette-empty">No matching actions</li>';
+                    return;
+                }
+
+                listEl.innerHTML = filteredActions.map((action, i) => `
+                    <li
+                        class="command-palette-item${i === selectedIndex ? ' is-selected' : ''}"
+                        role="option"
+                        aria-selected="${i === selectedIndex}"
+                        data-index="${i}"
+                    >
+                        <span class="command-palette-label">${action.label}</span>
+                    </li>
+                `).join('');
+            }
+
+            function open() {
+                overlay.classList.add('active');
+                selectedIndex = 0;
+                input.value = '';
+                render('');
+                input.focus();
+            }
+
+            function close() {
+                overlay.classList.remove('active');
+                input.value = '';
+            }
+
+            function isOpen() {
+                return overlay.classList.contains('active');
+            }
+
+            function runSelected() {
+                const action = filteredActions[selectedIndex];
+                if (!action) return;
+                close();
+                action.run();
+            }
+
+            function moveSelection(delta) {
+                if (!filteredActions.length) return;
+                selectedIndex = (selectedIndex + delta + filteredActions.length) % filteredActions.length;
+                render(input.value.trim().toLowerCase());
+                const selected = listEl.querySelector('.is-selected');
+                selected?.scrollIntoView({ block: 'nearest' });
+            }
+
+            function isOpenChord(e) {
+                const slash = e.key === '/' || e.code === 'Slash';
+                return slash && (e.ctrlKey || e.metaKey) && !e.altKey;
+            }
+
+            function handleGlobalKeydown(e) {
+                if (isOpen()) {
+                    if (e.key === 'Escape') {
+                        e.preventDefault();
+                        close();
+                        return;
+                    }
+                    if (e.key === 'ArrowDown') {
+                        e.preventDefault();
+                        moveSelection(1);
+                        return;
+                    }
+                    if (e.key === 'ArrowUp') {
+                        e.preventDefault();
+                        moveSelection(-1);
+                        return;
+                    }
+                    if (e.key === 'Enter') {
+                        e.preventDefault();
+                        runSelected();
+                    }
+                    return;
+                }
+
+                if (isOpenChord(e)) {
+                    e.preventDefault();
+                    open();
+                    return;
+                }
+
+                if (FileEditor.isOpen()) {
+                    if (e.key === 'Escape') FileEditor.close();
+                    if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
+                        e.preventDefault();
+                        FileEditor.continueToUpload();
+                    }
+                    return;
+                }
+
+                const settingsModal = document.getElementById('settingsModal');
+                if (!settingsModal.classList.contains('active')) return;
+                if (e.key === 'Escape') closeSettingsModal();
+                if (e.key === 'Enter' && pendingFile && !isTypingField(e.target)) {
+                    e.preventDefault();
+                    document.getElementById('modalUpload').click();
+                }
+            }
+
+            function isTypingField(el) {
+                if (!el) return false;
+                const tag = el.tagName;
+                return tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || el.isContentEditable;
+            }
+
+            function init() {
+                const openHint = IS_MAC ? '⌘/' : 'Ctrl+/';
+                document.getElementById('commandPaletteOpenHint').textContent = `${openHint} open`;
+                const subtitle = document.getElementById('siteSubtitle');
+                if (subtitle) {
+                    subtitle.textContent += ` · ${openHint} for actions`;
+                }
+
+                input.addEventListener('input', () => {
+                    selectedIndex = 0;
+                    render(input.value.trim().toLowerCase());
+                });
+                listEl.addEventListener('click', (e) => {
+                    const item = e.target.closest('.command-palette-item');
+                    if (!item) return;
+                    selectedIndex = parseInt(item.dataset.index, 10);
+                    runSelected();
+                });
+                overlay.addEventListener('click', (e) => {
+                    if (e.target === overlay) close();
+                });
+                document.addEventListener('keydown', handleGlobalKeydown);
+            }
+
+            return { init, open, close, isOpen };
+        })();
+
+        CommandPalette.init();
 
         // Upload button
         document.getElementById('modalUpload').addEventListener('click', () => {

@@ -186,6 +186,11 @@
             animation: cardIn 0.35s cubic-bezier(0.16, 1, 0.3, 1) both;
         }
 
+        /* Restored history — skip staggered fade-in so the grid appears immediately */
+        .card-wrapper.card-restored {
+            animation: none;
+        }
+
         /* Shadow layer — sits behind the card */
         .card-shadow-svg {
             position: absolute;
@@ -267,9 +272,44 @@
         .ttl-badge.ttl-danger { background: #e17055; }
         .ttl-badge.ttl-dead { background: #636e72; }
 
+        .ttl-badge.ttl-draft { background: #a29bfe; }
+
+        .draft-card {
+            cursor: pointer;
+        }
+
+        .draft-card:hover .file-name-label {
+            color: var(--ink-black);
+            text-decoration: underline;
+        }
+
+        .card-remove-btn {
+            position: absolute;
+            top: 6px;
+            left: 6px;
+            z-index: 25;
+            width: 24px;
+            height: 24px;
+            padding: 0;
+            border: 1.5px solid #ddd;
+            background: #fff;
+            font-family: 'Inter', sans-serif;
+            font-size: 1rem;
+            line-height: 1;
+            cursor: pointer;
+            color: #888;
+            transition: background 0.15s, color 0.15s;
+        }
+
+        .card-remove-btn:hover {
+            background: #ffeaea;
+            color: #c0392b;
+            border-color: #e74c3c;
+        }
+
         /* Empty state */
         .empty-state {
-            grid-column: 2 / -1;
+            grid-column: 4 / -1;
             display: flex;
             flex-direction: column;
             align-items: center;
@@ -782,6 +822,20 @@
             opacity: 0.85;
         }
 
+        .modal-btn-danger {
+            background: #e74c3c;
+            border-color: #e74c3c;
+            color: white;
+        }
+
+        .modal-btn-danger:hover {
+            opacity: 0.9;
+        }
+
+        #confirmModal.modal-overlay {
+            z-index: 3500;
+        }
+
         /* SEO Footer */
         .seo-footer {
             max-width: 800px;
@@ -913,7 +967,7 @@
                 <svg class="modal-border-svg"></svg>
                 <div class="modal-content">
                     <div class="modal-title">Create a file</div>
-                    <p class="modal-filename">Type or paste content, then continue to upload settings.</p>
+                    <p class="modal-filename" id="editorHint">Drafts save automatically — each file appears on the home screen.</p>
 
                     <div class="setting-row">
                         <div class="setting-label">File name</div>
@@ -988,6 +1042,22 @@
             </div>
         </div>
 
+        <!-- Confirm dialog -->
+        <div class="modal-overlay" id="confirmModal">
+            <div class="modal-card">
+                <svg class="modal-border-svg"></svg>
+                <div class="modal-content">
+                    <div class="modal-title" id="confirmTitle">Remove file?</div>
+                    <p class="modal-filename" id="confirmMessage"></p>
+                    <p class="modal-filename" id="confirmFileName" style="font-weight: 700; color: var(--ink-black);"></p>
+                    <div class="modal-actions">
+                        <button type="button" class="modal-btn modal-btn-cancel" id="confirmCancel">Cancel</button>
+                        <button type="button" class="modal-btn modal-btn-danger" id="confirmOk">Remove</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <!-- Toast -->
         <div class="toast" id="toast"></div>
 
@@ -1047,6 +1117,16 @@
             drawIcons();
             drawHeaderScribble();
             drawUploadBorder();
+        }
+
+        let drawAllPending = false;
+        function scheduleDrawAll() {
+            if (drawAllPending) return;
+            drawAllPending = true;
+            requestAnimationFrame(() => {
+                drawAllPending = false;
+                drawAll();
+            });
         }
 
         // ========== CARD SHADOWS ==========
@@ -1276,7 +1356,7 @@
         }
 
         // ========== RESIZE OBSERVER ==========
-        const ro = new ResizeObserver(() => requestAnimationFrame(drawAll));
+        const ro = new ResizeObserver(() => scheduleDrawAll());
 
         window.addEventListener('load', () => {
             const grid = document.getElementById('cardGrid');
@@ -1400,10 +1480,37 @@
                 RANDOM_PREFIX_LENGTH: 8,
             },
             EDITOR: {
-                DEFAULT_FILENAME: 'note.txt',
                 DEFAULT_EXTENSION: 'txt',
+                DRAFTS_KEY: 'tempfile_editor_drafts',
+                LEGACY_DRAFT_KEY: 'tempfile_editor_draft',
+                DRAFT_SAVE_MS: 400,
+                MAX_DRAFTS: 30,
+                RANDOM_PREFIX_LENGTH: 8,
             },
         };
+
+        function randomPrefixedFilename(name, prefixLength = UPLOAD_CONFIG.EDITOR.RANDOM_PREFIX_LENGTH) {
+            const code = crypto.randomUUID().replace(/-/g, '').slice(0, prefixLength);
+            return `${code}_${name}`;
+        }
+
+        function escapeHtml(str) {
+            return String(str)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;');
+        }
+
+        function fmtDraftAge(ts) {
+            const diff = Date.now() - ts;
+            const m = Math.floor(diff / 60000);
+            if (m < 1) return 'just now';
+            if (m < 60) return `${m}m ago`;
+            const h = Math.floor(diff / 3600000);
+            if (h < 24) return `${h}h ago`;
+            return `${Math.floor(diff / 86400000)}d ago`;
+        }
 
         // Identity — persist a secret token per browser
         let secretToken = localStorage.getItem('media_secret_token');
@@ -1489,6 +1596,51 @@
             if (e.target === e.currentTarget) closeSettingsModal();
         });
 
+        // ========== CONFIRM DIALOG ==========
+        const ConfirmDialog = (function () {
+            const modal = document.getElementById('confirmModal');
+            const titleEl = document.getElementById('confirmTitle');
+            const messageEl = document.getElementById('confirmMessage');
+            const fileNameEl = document.getElementById('confirmFileName');
+            let resolver = null;
+
+            function close(result) {
+                modal.classList.remove('active');
+                const fn = resolver;
+                resolver = null;
+                if (fn) fn(result);
+            }
+
+            function showConfirm({ title, message, fileName, danger = true }) {
+                return new Promise((resolve) => {
+                    resolver = resolve;
+                    titleEl.textContent = title || 'Confirm';
+                    messageEl.textContent = message || '';
+                    fileNameEl.textContent = fileName || '';
+                    fileNameEl.style.display = fileName ? 'block' : 'none';
+                    const okBtn = document.getElementById('confirmOk');
+                    okBtn.textContent = danger ? 'Remove' : 'OK';
+                    okBtn.className = danger ? 'modal-btn modal-btn-danger' : 'modal-btn modal-btn-upload';
+                    modal.classList.add('active');
+                    drawModalBorder(modal);
+                });
+            }
+
+            document.getElementById('confirmCancel').addEventListener('click', () => close(false));
+            document.getElementById('confirmOk').addEventListener('click', () => close(true));
+            modal.addEventListener('click', (e) => {
+                if (e.target === modal) close(false);
+            });
+
+            return { showConfirm };
+        })();
+
+        // ========== ACTIVITY CARDS (drafts + uploads, sorted by last edit) ==========
+        function EDITOR_EXT_FROM_NAME(name) {
+            const i = String(name || '').lastIndexOf('.');
+            return i > 0 ? name.slice(i + 1).toLowerCase() : 'txt';
+        }
+
         // ========== FILE EDITOR ==========
         const FileEditor = (function () {
             const { EDITOR } = UPLOAD_CONFIG;
@@ -1496,6 +1648,10 @@
             const filenameInput = document.getElementById('editorFilename');
             const contentInput = document.getElementById('editorContent');
             const formatChips = document.getElementById('editorFormatChips');
+
+            let activeDraftId = null;
+            let sessionDirty = false;
+            let draftSaveTimer = null;
 
             const MIME_BY_EXT = {
                 txt: 'text/plain',
@@ -1505,6 +1661,62 @@
                 js: 'text/javascript',
                 css: 'text/css',
             };
+
+            function newDraftId() {
+                return crypto.randomUUID();
+            }
+
+            function defaultFilename(ext) {
+                return randomPrefixedFilename(`note.${ext}`);
+            }
+
+            function loadDrafts() {
+                try {
+                    const raw = localStorage.getItem(EDITOR.DRAFTS_KEY);
+                    if (raw) {
+                        const parsed = JSON.parse(raw);
+                        if (Array.isArray(parsed)) return parsed;
+                    }
+                } catch (_) { /* ignore */ }
+                try {
+                    const legacy = localStorage.getItem(EDITOR.LEGACY_DRAFT_KEY);
+                    if (!legacy) return [];
+                    const d = JSON.parse(legacy);
+                    localStorage.removeItem(EDITOR.LEGACY_DRAFT_KEY);
+                    if (!d?.content?.trim()) return [];
+                    const migrated = [{
+                        id: newDraftId(),
+                        filename: d.filename || defaultFilename(d.ext || EDITOR.DEFAULT_EXTENSION),
+                        content: d.content || '',
+                        ext: d.ext || EDITOR.DEFAULT_EXTENSION,
+                        updatedAt: d.updatedAt || Date.now(),
+                    }];
+                    localStorage.setItem(EDITOR.DRAFTS_KEY, JSON.stringify(migrated));
+                    return migrated;
+                } catch (_) {
+                    return [];
+                }
+            }
+
+            function saveDraftsList(drafts) {
+                const meaningful = drafts.filter((d) => d.content?.trim());
+                meaningful.sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0));
+                localStorage.setItem(
+                    EDITOR.DRAFTS_KEY,
+                    JSON.stringify(meaningful.slice(0, EDITOR.MAX_DRAFTS))
+                );
+            }
+
+            function removeDraft(id) {
+                if (!id) return;
+                saveDraftsList(loadDrafts().filter((d) => d.id !== id));
+            }
+
+            function upsertDraft(draft) {
+                const drafts = loadDrafts().filter((d) => d.id !== draft.id);
+                drafts.unshift({ ...draft, updatedAt: Date.now() });
+                saveDraftsList(drafts);
+            }
 
             function mimeForFilename(name) {
                 const ext = name.includes('.') ? name.split('.').pop().toLowerCase() : '';
@@ -1516,6 +1728,11 @@
                 return i > 0 ? name.slice(0, i) : name;
             }
 
+            function getActiveExtension() {
+                const active = formatChips.querySelector('.format-chip.active');
+                return active?.dataset.ext || EDITOR.DEFAULT_EXTENSION;
+            }
+
             function setFormatExtension(ext) {
                 formatChips.querySelectorAll('.format-chip').forEach((chip) => {
                     chip.classList.toggle('active', chip.dataset.ext === ext);
@@ -1525,9 +1742,19 @@
             }
 
             function resetForm() {
-                filenameInput.value = EDITOR.DEFAULT_FILENAME;
+                activeDraftId = newDraftId();
+                filenameInput.value = defaultFilename(EDITOR.DEFAULT_EXTENSION);
                 contentInput.value = '';
                 setFormatExtension(EDITOR.DEFAULT_EXTENSION);
+                sessionDirty = false;
+            }
+
+            function applyDraftToForm(draft) {
+                activeDraftId = draft.id;
+                filenameInput.value = draft.filename;
+                contentInput.value = draft.content || '';
+                setFormatExtension(draft.ext || EDITOR_EXT_FROM_NAME(draft.filename));
+                sessionDirty = false;
             }
 
             function createFile(filename, content) {
@@ -1535,15 +1762,69 @@
                 return new File([content], filename, { type, lastModified: Date.now() });
             }
 
-            function open() {
-                resetForm();
+            function saveDraftNow() {
+                if (!modal.classList.contains('active')) return;
+                const content = contentInput.value;
+                const filename = filenameInput.value.trim();
+                const ext = getActiveExtension();
+                if (!activeDraftId) activeDraftId = newDraftId();
+
+                if (!content.trim()) {
+                    if (sessionDirty) removeDraft(activeDraftId);
+                    renderDraftCards();
+                    return;
+                }
+
+                upsertDraft({
+                    id: activeDraftId,
+                    filename: filename || defaultFilename(ext),
+                    content,
+                    ext,
+                });
+                renderDraftCards();
+            }
+
+            function scheduleDraftSave() {
+                if (!modal.classList.contains('active')) return;
+                clearTimeout(draftSaveTimer);
+                draftSaveTimer = setTimeout(saveDraftNow, EDITOR.DRAFT_SAVE_MS);
+            }
+
+            function open(opts = {}) {
+                if (opts.newFile) {
+                    resetForm();
+                } else if (opts.draftId) {
+                    const draft = loadDrafts().find((d) => d.id === opts.draftId);
+                    if (draft) applyDraftToForm(draft);
+                    else resetForm();
+                } else {
+                    resetForm();
+                }
+
                 modal.classList.add('active');
                 drawModalBorder(modal);
                 contentInput.focus();
+                if (!opts.silent && opts.draftId) showToast('Restored your draft');
             }
 
             function close() {
+                saveDraftNow();
                 modal.classList.remove('active');
+            }
+
+            async function startFresh() {
+                if (contentInput.value.trim()) {
+                    const ok = await ConfirmDialog.showConfirm({
+                        title: 'Start fresh?',
+                        message: 'The current draft will be discarded.',
+                        fileName: filenameInput.value.trim(),
+                        danger: true,
+                    });
+                    if (!ok) return;
+                }
+                if (activeDraftId && sessionDirty) removeDraft(activeDraftId);
+                resetForm();
+                renderDraftCards();
             }
 
             function continueToUpload() {
@@ -1560,17 +1841,20 @@
                     return;
                 }
                 if (!filename.includes('.')) {
-                    const active = formatChips.querySelector('.format-chip.active');
-                    const ext = active?.dataset.ext || EDITOR.DEFAULT_EXTENSION;
-                    filename = `${filename}.${ext}`;
+                    filename = `${filename}.${getActiveExtension()}`;
                 }
                 const file = createFile(filename, content);
-                close();
+                const finishedId = activeDraftId;
+                modal.classList.remove('active');
+                if (finishedId) removeDraft(finishedId);
+                activeDraftId = null;
+                sessionDirty = false;
+                renderDraftCards();
                 showSettingsModal(file);
             }
 
             function init() {
-                document.getElementById('editorCard').addEventListener('click', open);
+                document.getElementById('editorCard').addEventListener('click', () => open({ newFile: true }));
                 document.getElementById('editorCancel').addEventListener('click', close);
                 document.getElementById('editorContinue').addEventListener('click', continueToUpload);
                 modal.addEventListener('click', (e) => {
@@ -1579,12 +1863,206 @@
                 formatChips.querySelectorAll('.format-chip').forEach((chip) => {
                     chip.addEventListener('click', () => setFormatExtension(chip.dataset.ext));
                 });
+                contentInput.addEventListener('input', () => {
+                    sessionDirty = true;
+                    scheduleDraftSave();
+                });
+                filenameInput.addEventListener('input', () => {
+                    sessionDirty = true;
+                    scheduleDraftSave();
+                });
+                window.addEventListener('beforeunload', () => {
+                    if (modal.classList.contains('active')) saveDraftNow();
+                });
             }
 
-            return { open, close, continueToUpload, init, isOpen: () => modal.classList.contains('active') };
+            return {
+                open,
+                close,
+                continueToUpload,
+                startFresh,
+                init,
+                loadDrafts,
+                removeDraft,
+                isOpen: () => modal.classList.contains('active'),
+            };
         })();
 
+        function createDraftCardElement(draft) {
+            const ext = draft.ext || EDITOR_EXT_FROM_NAME(draft.filename);
+            const preview = escapeHtml((draft.content || '').slice(0, 120));
+            const age = fmtDraftAge(draft.updatedAt || Date.now());
+            const wrapper = document.createElement('div');
+            wrapper.className = 'card-wrapper draft-card card-restored activity-card';
+            wrapper.dataset.draftId = draft.id;
+            wrapper.dataset.sortTime = String(draft.updatedAt || Date.now());
+            wrapper.dataset.colorIndex = '5';
+
+            wrapper.innerHTML = `
+                <button type="button" class="card-remove-btn" title="Remove draft" aria-label="Remove draft">×</button>
+                <svg class="card-shadow-svg"></svg>
+                <div class="card-body">
+                    <svg class="card-border-svg" data-style="solid"></svg>
+                    <span class="ttl-badge ttl-draft">Draft · ${age}</span>
+                    <div class="file-preview">
+                        <div class="text-preview" style="width: 80px; height: 80px; font-size: 0.35rem; font-family: monospace; overflow: hidden; background: #f9f9f9; padding: 6px; border: 1px solid #ddd; text-align: left; white-space: pre-wrap; color: #333; line-height: 1.2;">${preview}</div>
+                        <span class="file-type-label">${escapeHtml(ext)}</span>
+                        <span class="file-name-label" title="${escapeHtml(draft.filename)}">${escapeHtml(draft.filename)}</span>
+                        <span class="file-size-label">Not uploaded</span>
+                    </div>
+                    <button type="button" class="copy-button">
+                        <svg class="btn-bg-svg"></svg>
+                        <span class="btn-label">Continue editing</span>
+                    </button>
+                </div>
+            `;
+
+            wrapper.querySelector('.card-remove-btn').addEventListener('click', async (e) => {
+                e.stopPropagation();
+                const ok = await ConfirmDialog.showConfirm({
+                    title: 'Remove draft?',
+                    message: 'This draft will be deleted from this browser.',
+                    fileName: draft.filename,
+                });
+                if (!ok) return;
+                FileEditor.removeDraft(draft.id);
+                renderActivityCards();
+            });
+
+            wrapper.addEventListener('click', (e) => {
+                if (e.target.closest('.card-remove-btn')) return;
+                FileEditor.open({ draftId: draft.id, silent: true });
+            });
+
+            return wrapper;
+        }
+
+        function createUploadHistoryCardElement(item) {
+            const ext = item.name.split('.').pop().toLowerCase();
+            const iconType = getIconType(ext);
+            const cidx = colorCounter % COLORS.length;
+            colorCounter++;
+
+            const wrapper = document.createElement('div');
+            wrapper.className = 'card-wrapper card-restored activity-card';
+            wrapper.dataset.colorIndex = cidx;
+            wrapper.dataset.sortTime = String(item.uploadedAt || 0);
+
+            const isExpired = item.expiresAt && item.expiresAt < Date.now();
+            const { text: ttlText, cls: ttlCls } = fmtTtl(item.expiresAt || 0);
+
+            const isImage = ['jpg', 'jpeg', 'png', 'gif', 'svg', 'webp'].includes(ext);
+            const isText = ['txt', 'html', 'css', 'js', 'json', 'md'].includes(ext);
+            let previewHtml = '';
+
+            if (isImage) {
+                previewHtml = `<img src="${item.url}" style="width: 80px; height: 80px; object-fit: contain; margin-bottom: 4px;" />`;
+            } else if (isText) {
+                previewHtml = `<div class="text-preview" style="width: 80px; height: 80px; font-size: 0.35rem; font-family: monospace; overflow: hidden; background: #f9f9f9; padding: 6px; border: 1px solid #ddd; text-align: left; white-space: pre-wrap; color: #333; line-height: 1.2;">…</div>`;
+            } else {
+                previewHtml = `<svg class="rough-icon" data-icon="${iconType}"></svg>`;
+            }
+
+            wrapper.innerHTML = `
+                <svg class="card-shadow-svg"></svg>
+                <div class="card-body"${isExpired ? ' style="opacity:0.5;"' : ''}>
+                    <svg class="card-border-svg" data-style="solid"></svg>
+                    <span class="ttl-badge ${ttlCls}" data-expires="${item.expiresAt || 0}">${ttlText}</span>
+                    <div class="file-preview">
+                        ${previewHtml}
+                        <span class="file-type-label">${ext}</span>
+                        <span class="file-name-label" title="${escapeHtml(item.name)}">${escapeHtml(item.name)}</span>
+                    </div>
+                    <button class="copy-button" onclick="event.stopPropagation(); copyToClipboard('${item.url}', this)"${isExpired ? ' disabled style="opacity:0.5;"' : ''}>
+                        <svg class="btn-bg-svg"></svg>
+                        <span class="btn-label">${isExpired ? 'Expired' : 'Copy Link'}</span>
+                    </button>
+                </div>
+            `;
+
+            if (!isExpired) {
+                wrapper.dataset.url = item.url;
+                wrapper.addEventListener('click', (e) => {
+                    if (e.target.closest('.copy-button')) return;
+                    window.open(item.url, '_blank');
+                });
+            }
+
+            if (isText) loadTextPreviewWhenVisible(wrapper, item.url);
+
+            return wrapper;
+        }
+
+        function reorderActivityCards() {
+            const grid = document.getElementById('cardGrid');
+            const adCard = grid.querySelector('.ad-card');
+            if (!adCard) return;
+            const cards = Array.from(grid.querySelectorAll('.activity-card'));
+            cards.sort((a, b) => Number(b.dataset.sortTime || 0) - Number(a.dataset.sortTime || 0));
+            let anchor = adCard;
+            cards.forEach((card) => {
+                anchor.insertAdjacentElement('afterend', card);
+                anchor = card;
+            });
+        }
+
+        function renderActivityCards() {
+            const grid = document.getElementById('cardGrid');
+            const adCard = grid.querySelector('.ad-card');
+            const inFlight = Array.from(grid.querySelectorAll('.activity-card.is-uploading'));
+
+            grid.querySelectorAll('.activity-card:not(.is-uploading)').forEach((el) => el.remove());
+
+            const entries = [];
+
+            FileEditor.loadDrafts()
+                .filter((d) => d.content?.trim())
+                .forEach((d) => {
+                    entries.push({ kind: 'draft', sortTime: d.updatedAt || 0, data: d });
+                });
+
+            JSON.parse(localStorage.getItem(HISTORY_KEY) || '[]').forEach((u) => {
+                entries.push({
+                    kind: 'upload',
+                    sortTime: u.uploadedAt || 0,
+                    data: u,
+                });
+            });
+
+            inFlight.forEach((card) => {
+                entries.push({
+                    kind: 'uploading',
+                    sortTime: Number(card.dataset.sortTime || Date.now()),
+                    el: card,
+                });
+            });
+
+            entries.sort((a, b) => b.sortTime - a.sortTime);
+
+            const fragment = document.createDocumentFragment();
+            entries.forEach((entry) => {
+                if (entry.kind === 'uploading') {
+                    fragment.appendChild(entry.el);
+                } else if (entry.kind === 'draft') {
+                    fragment.appendChild(createDraftCardElement(entry.data));
+                } else {
+                    fragment.appendChild(createUploadHistoryCardElement(entry.data));
+                }
+            });
+
+            if (adCard) adCard.after(fragment);
+            else grid.appendChild(fragment);
+
+            scheduleDrawAll();
+            updateEmptyState();
+        }
+
+        function renderDraftCards() {
+            renderActivityCards();
+        }
+
         FileEditor.init();
+        renderActivityCards();
 
         // ========== COMMAND PALETTE ==========
         const CommandPalette = (function () {
@@ -1609,7 +2087,7 @@
                         id: 'editor',
                         label: 'Create file in editor',
                         keywords: 'new write text note code',
-                        run: () => FileEditor.open(),
+                        run: () => FileEditor.open({ newFile: true }),
                     },
                 ];
 
@@ -1619,6 +2097,12 @@
                         label: 'Continue to upload settings',
                         keywords: 'save next submit',
                         run: () => FileEditor.continueToUpload(),
+                    });
+                    actions.push({
+                        id: 'editor-fresh',
+                        label: 'Start fresh (discard current draft)',
+                        keywords: 'new clear reset discard',
+                        run: () => FileEditor.startFresh(),
                     });
                 }
 
@@ -1933,8 +2417,9 @@
 
             // Create the card immediately in a "loading" state
             const wrapper = document.createElement('div');
-            wrapper.className = 'card-wrapper';
+            wrapper.className = 'card-wrapper activity-card is-uploading';
             wrapper.dataset.colorIndex = cidx;
+            wrapper.dataset.sortTime = String(Date.now());
 
             const isImage = ['jpg','jpeg','png','gif','svg','webp'].includes(ext);
             const isText = ['txt','html','css','js','json','md'].includes(ext);
@@ -1975,14 +2460,12 @@
                 </div>
             `;
 
-            const uploadCard = grid.querySelector('.upload-card');
-            if (uploadCard && uploadCard.nextSibling) {
-                grid.insertBefore(wrapper, uploadCard.nextSibling);
-            } else {
-                grid.appendChild(wrapper);
-            }
+            const adCard = grid.querySelector('.ad-card');
+            if (adCard) adCard.insertAdjacentElement('afterend', wrapper);
+            else grid.appendChild(wrapper);
+            reorderActivityCards();
 
-            requestAnimationFrame(drawAll);
+            scheduleDrawAll();
 
             // Remove empty state if present
             const emptyState = grid.querySelector('.empty-state');
@@ -2067,17 +2550,24 @@
                 // Remove existing entry with the same URL to prefer the latest
                 uploads = uploads.filter(u => u.url !== finalUrl);
                 
+                const uploadedAt = Date.now();
                 uploads.unshift({
                     name: filename,
                     url: finalUrl,
-                    uploadedAt: Date.now(),
-                    expiresAt: Date.now() + cacheDuration * 1000,
+                    uploadedAt,
+                    expiresAt: uploadedAt + cacheDuration * 1000,
                 });
                 localStorage.setItem(HISTORY_KEY, JSON.stringify(uploads.slice(0, 50)));
 
                 // Remove existing cards in the DOM with the same URL to prevent visual duplicates
-                const existingCards = Array.from(grid.querySelectorAll('.card-wrapper')).filter(c => c !== wrapper && c.dataset.url === finalUrl);
-                existingCards.forEach(c => c.remove());
+                const existingCards = Array.from(grid.querySelectorAll('.activity-card')).filter(
+                    (c) => c !== wrapper && c.dataset.url === finalUrl
+                );
+                existingCards.forEach((c) => c.remove());
+
+                wrapper.classList.remove('is-uploading');
+                wrapper.dataset.sortTime = String(uploadedAt);
+                reorderActivityCards();
 
                 // 6. Update card to "success" state
                 drawProgress(progressSvg, 1, color);
@@ -2127,94 +2617,52 @@
             }
         }
 
-        // ========== RENDER HISTORY ON LOAD ==========
-        function renderHistory() {
-            const grid = document.getElementById('cardGrid');
-            const uploads = JSON.parse(localStorage.getItem(HISTORY_KEY) || '[]');
-
-            uploads.forEach((item, i) => {
-                const ext = item.name.split('.').pop().toLowerCase();
-                const iconType = getIconType(ext);
-                const cidx = colorCounter % COLORS.length;
-                colorCounter++;
-
-                const wrapper = document.createElement('div');
-                wrapper.className = 'card-wrapper';
-                wrapper.dataset.colorIndex = cidx;
-
-                const isExpired = item.expiresAt && item.expiresAt < Date.now();
-                const { text: ttlText, cls: ttlCls } = fmtTtl(item.expiresAt || 0);
-
-                const isImage = ['jpg','jpeg','png','gif','svg','webp'].includes(ext);
-                const isText = ['txt','html','css','js','json','md'].includes(ext);
-                let previewHtml = '';
-
-                if (isImage) {
-                    previewHtml = `<img src="${item.url}" style="width: 80px; height: 80px; object-fit: contain; margin-bottom: 4px;" />`;
-                } else if (isText) {
-                    previewHtml = `<div class="text-preview" style="width: 80px; height: 80px; font-size: 0.35rem; font-family: monospace; overflow: hidden; background: #f9f9f9; padding: 6px; border: 1px solid #ddd; text-align: left; white-space: pre-wrap; color: #333; line-height: 1.2;">Loading...</div>`;
-                    fetch(item.url).then(r => r.text()).then(text => {
-                        const div = wrapper.querySelector('.text-preview');
-                        if (div) div.textContent = text.slice(0, 150);
-                    }).catch(() => {
-                        const div = wrapper.querySelector('.text-preview');
-                        if (div) div.textContent = 'Error loading';
-                    });
-                } else {
-                    previewHtml = `<svg class="rough-icon" data-icon="${iconType}"></svg>`;
-                }
-
-                wrapper.innerHTML = `
-                    <svg class="card-shadow-svg"></svg>
-                    <div class="card-body"${isExpired ? ' style="opacity:0.5;"' : ''}>
-                        <svg class="card-border-svg" data-style="solid"></svg>
-                        <span class="ttl-badge ${ttlCls}" data-expires="${item.expiresAt || 0}">${ttlText}</span>
-                        <div class="file-preview">
-                            ${previewHtml}
-                            <span class="file-type-label">${ext}</span>
-                            <span class="file-name-label" title="${item.name}">${item.name}</span>
-                        </div>
-                        <button class="copy-button" onclick="event.stopPropagation(); copyToClipboard('${item.url}', this)"${isExpired ? ' disabled style="opacity:0.5;"' : ''}>
-                            <svg class="btn-bg-svg"></svg>
-                            <span class="btn-label">${isExpired ? 'Expired' : 'Copy Link'}</span>
-                        </button>
-                    </div>
-                `;
-
-                // Click to open
-                if (!isExpired) {
-                    wrapper.dataset.url = item.url;
-                    wrapper.addEventListener('click', (e) => {
-                        if (e.target.closest('.copy-button')) return;
-                        window.open(item.url, '_blank');
-                    });
-                }
-
-                // Stagger entrance animation
-                wrapper.style.animationDelay = (i * 0.06) + 's';
-
-                grid.appendChild(wrapper);
-            });
+        function loadTextPreviewWhenVisible(wrapper, url) {
+            const preview = wrapper.querySelector('.text-preview');
+            if (!preview) return;
+            const run = () => {
+                fetch(url)
+                    .then((r) => r.text())
+                    .then((text) => { preview.textContent = text.slice(0, 150); })
+                    .catch(() => { preview.textContent = 'Error loading'; });
+            };
+            if (!('IntersectionObserver' in window)) {
+                run();
+                return;
+            }
+            const io = new IntersectionObserver(
+                (entries) => {
+                    if (!entries[0]?.isIntersecting) return;
+                    io.disconnect();
+                    run();
+                },
+                { rootMargin: '120px' }
+            );
+            io.observe(wrapper);
         }
-
-        // Load history on startup
-        renderHistory();
 
         // Show empty state if no history
         function updateEmptyState() {
             const grid = document.getElementById('cardGrid');
             const existing = grid.querySelector('.empty-state');
-            const cards = grid.querySelectorAll('.card-wrapper:not(.upload-card):not(.ad-card)');
-            if (cards.length === 0 && !existing) {
+            const hasDrafts = grid.querySelectorAll('.draft-card').length > 0;
+            const fileCards = grid.querySelectorAll('.card-wrapper:not(.upload-card):not(.ad-card):not(.draft-card)');
+            if (hasDrafts && existing) {
+                existing.remove();
+                return;
+            }
+            if (fileCards.length === 0 && !hasDrafts && !existing) {
                 const empty = document.createElement('div');
                 empty.className = 'empty-state';
                 empty.innerHTML = `
                     <svg class="rough-plus"></svg>
                     <div class="empty-state-text">No files yet — upload your first one!</div>
                 `;
-                grid.appendChild(empty);
+                const adCard = grid.querySelector('.ad-card');
+                if (adCard) adCard.insertAdjacentElement('afterend', empty);
+                else grid.appendChild(empty);
                 requestAnimationFrame(drawPlusSigns);
-            } else if (cards.length > 0 && existing) {
+            } else if (fileCards.length > 0 && existing) {
                 existing.remove();
             }
         }

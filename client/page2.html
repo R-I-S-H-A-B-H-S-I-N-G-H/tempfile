@@ -1,0 +1,3111 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <!-- Google tag (gtag.js) -->
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-H592334SD3"></script>
+    <script>
+        window.dataLayer = window.dataLayer || [];
+        function gtag(){dataLayer.push(arguments);}
+        gtag('js', new Date());
+
+        gtag('config', 'G-H592334SD3');
+    </script>
+    <meta charset="UTF-8">
+    <meta name="robots" content="index, follow">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!-- <meta name="description" content="Share files temporarily with Tempfile. Clean, secure, and minimal ephemeral file sharing designed for the modern web."> -->
+    <title>Tempfile | Secure & Ephemeral Temporary File Sharing</title>
+    <meta name="title" content="Tempfile | Secure & Ephemeral Temporary File Sharing">
+    <meta name="description" content="Share files temporarily with Tempfile. Secure, minimal, and ephemeral file sharing designed for the modern web. No traces, just sharing.">
+    <link rel="canonical" href="https://tempfile.com/">
+    
+    <link rel="icon" type="image/png" href="/logo.png">
+    
+    <link href="https://fonts.googleapis.com/css2?family=Caveat:wght@400;700&family=Inter:wght@400;700;800&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --paper-white: #faf8f5;
+            --ink-black: #2d2d2d;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+        }
+
+        body {
+            background-color: var(--paper-white);
+            color: var(--ink-black);
+            overflow-x: hidden;
+        }
+
+        .app-container {
+            display: flex;
+            flex-direction: column;
+            min-height: 100vh;
+        }
+
+        /* --- HEADER --- */
+        .site-header {
+            padding: 32px 40px 8px;
+            display: flex;
+            align-items: center;
+            gap: 14px;
+        }
+
+        .site-header h1 {
+            font-family: 'Caveat', cursive;
+            font-size: 2.4rem;
+            font-weight: 700;
+            color: var(--ink-black);
+        }
+
+        .site-subtitle {
+            font-size: 0.72rem;
+            color: #aaa;
+            letter-spacing: 0.5px;
+            margin-left: 2px;
+        }
+
+        .header-scribble {
+            width: 44px;
+            height: 44px;
+            flex-shrink: 0;
+        }
+
+        /* --- FULL-PAGE DROP ZONE --- */
+        body.file-drag-active {
+            overflow: hidden;
+        }
+
+        .upload-row {
+            position: fixed;
+            inset: 0;
+            width: 100%;
+            height: 100%;
+            min-height: 100dvh;
+            background-color: var(--paper-white);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 24px;
+            z-index: 1000;
+            visibility: hidden;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.18s ease, visibility 0.18s ease;
+        }
+
+        .upload-row.active {
+            visibility: visible;
+            opacity: 1;
+            pointer-events: all;
+        }
+
+        .upload-row.drag-highlight .upload-area {
+            border-color: #a29bfe;
+            background: #ffffff;
+            box-shadow: 8px 8px 0 #dcd6ff;
+        }
+
+        .upload-scrim {
+            display: none;
+        }
+
+        .paper-texture::before {
+            content: "";
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            filter: url(#grainy);
+            opacity: 0.12;
+            pointer-events: none;
+            z-index: 1;
+        }
+
+        .upload-area {
+            position: relative;
+            z-index: 2;
+            width: min(560px, 100%);
+            height: min(300px, 55vh);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            background: #ffffff;
+            border: 2px solid #ddd;
+            transition: border-color 0.15s ease, box-shadow 0.15s ease;
+        }
+
+        .upload-area p {
+            font-family: 'Caveat', cursive;
+            font-weight: 700;
+            font-size: clamp(1.5rem, 4vw, 2rem);
+            margin-top: 12px;
+            color: var(--ink-black);
+        }
+
+        .upload-row.drag-highlight .upload-area p {
+            color: #6c5ce7;
+        }
+
+        /* --- CARD GRID --- */
+        .grid-row {
+            flex-grow: 1;
+            padding: 20px 40px 60px;
+        }
+
+        .card-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+            gap: 50px;
+            max-width: 1100px;
+            margin: 0 auto;
+        }
+
+        /* --- CARD WRAPPER (contains shadow SVG + card) --- */
+        .card-wrapper {
+            position: relative;
+            height: 300px;
+            cursor: default;
+        }
+
+        .card-wrapper:hover .card-body {
+            transform: translate(-3px, -3px);
+        }
+
+        /* Entrance animation */
+        @keyframes cardIn {
+            from { opacity: 0; transform: translateY(12px) scale(0.96); }
+            to { opacity: 1; transform: translateY(0) scale(1); }
+        }
+
+        .card-wrapper {
+            animation: cardIn 0.35s cubic-bezier(0.16, 1, 0.3, 1) both;
+        }
+
+        /* Restored history — skip staggered fade-in so the grid appears immediately */
+        .card-wrapper.card-restored {
+            animation: none;
+        }
+
+        /* Shadow layer — sits behind the card */
+        .card-shadow-svg {
+            position: absolute;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            pointer-events: none;
+            overflow: visible;
+        }
+
+        /* Card body — sits on top */
+        .card-body {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            background: white;
+            transition: transform 0.15s cubic-bezier(0.17, 0.67, 0.83, 0.67);
+            z-index: 2;
+        }
+
+        /* Card border SVG overlay on top of card body */
+        .card-border-svg {
+            position: absolute;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            pointer-events: none;
+            z-index: 5;
+        }
+
+        .file-preview {
+            flex-grow: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            z-index: 3;
+        }
+
+        .file-type-label {
+            font-family: 'Caveat', cursive;
+            font-size: 1.1rem;
+            font-weight: 700;
+            margin-top: 6px;
+            text-transform: uppercase;
+            color: var(--ink-black);
+        }
+
+        .file-name-label {
+            font-size: 0.65rem;
+            font-weight: 500;
+            color: #888;
+            margin-top: 2px;
+            max-width: 90%;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            text-align: center;
+        }
+
+        /* TTL Badge */
+        .ttl-badge {
+            position: absolute;
+            top: 6px;
+            right: 6px;
+            font-family: 'Inter', sans-serif;
+            font-size: 0.58rem;
+            font-weight: 700;
+            letter-spacing: 0.3px;
+            padding: 3px 7px;
+            z-index: 20;
+            color: white;
+            pointer-events: none;
+        }
+
+        .ttl-badge.ttl-ok { background: #00b894; }
+        .ttl-badge.ttl-warn { background: #fdcb6e; color: #2d2d2d; }
+        .ttl-badge.ttl-danger { background: #e17055; }
+        .ttl-badge.ttl-dead { background: #636e72; }
+
+        .ttl-badge.ttl-draft { background: #a29bfe; }
+
+        .draft-card {
+            cursor: pointer;
+        }
+
+        .draft-card:hover .file-name-label {
+            color: var(--ink-black);
+            text-decoration: underline;
+        }
+
+        .card-remove-btn {
+            position: absolute;
+            top: 6px;
+            left: 6px;
+            z-index: 25;
+            width: 24px;
+            height: 24px;
+            padding: 0;
+            border: 1.5px solid #ddd;
+            background: #fff;
+            font-family: 'Inter', sans-serif;
+            font-size: 1rem;
+            line-height: 1;
+            cursor: pointer;
+            color: #888;
+            transition: background 0.15s, color 0.15s;
+        }
+
+        .card-remove-btn:hover {
+            background: #ffeaea;
+            color: #c0392b;
+            border-color: #e74c3c;
+        }
+
+        .card-pin-btn {
+            position: absolute;
+            top: 6px;
+            left: 6px;
+            right: auto;
+            z-index: 25;
+            width: 26px;
+            height: 26px;
+            padding: 0;
+            border: 1.5px solid #ddd;
+            background: #fff;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            opacity: 0;
+            pointer-events: none;
+            transition: background 0.15s, border-color 0.15s, opacity 0.15s;
+        }
+
+        .card-pin-btn .rough-pin {
+            width: 15px;
+            height: 15px;
+            display: block;
+            pointer-events: none;
+            overflow: visible;
+        }
+
+        .card-wrapper:hover .card-pin-btn,
+        .card-wrapper:focus-within .card-pin-btn,
+        .card-pin-btn:focus-visible {
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        .card-wrapper.is-pinned .card-pin-btn {
+            opacity: 1;
+            pointer-events: auto;
+            background: #e8e4ff;
+            border-color: #a29bfe;
+        }
+
+        .card-pin-btn:hover {
+            background: #f0eeea;
+        }
+
+        .card-wrapper.is-pinned .card-pin-btn:hover {
+            background: #e8e4ff;
+            border-color: #a29bfe;
+        }
+
+        .card-wrapper.is-pinned .card-body {
+            outline: 2px solid #a29bfe;
+            outline-offset: -2px;
+        }
+
+        .draft-card .card-remove-btn {
+            left: 36px;
+        }
+
+        /* Empty state */
+        .empty-state {
+            grid-column: 4 / -1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 60px 20px;
+            color: #ccc;
+        }
+
+        .empty-state-text {
+            font-family: 'Caveat', cursive;
+            font-size: 1.3rem;
+            color: #bbb;
+            margin-top: 12px;
+        }
+
+        .empty-state svg {
+            width: 60px;
+            height: 60px;
+        }
+
+        /* Toast */
+        .toast {
+            position: fixed;
+            bottom: 28px;
+            left: 50%;
+            transform: translateX(-50%) translateY(80px);
+            background: var(--ink-black);
+            color: white;
+            padding: 10px 24px;
+            font-size: 0.78rem;
+            font-weight: 600;
+            z-index: 3000;
+            opacity: 0;
+            transition: transform 0.35s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.35s;
+            pointer-events: none;
+            font-family: 'Inter', sans-serif;
+        }
+
+        .toast.show {
+            transform: translateX(-50%) translateY(0);
+            opacity: 1;
+        }
+
+        /* Modal animation */
+        .modal-overlay {
+            transition: opacity 0.25s;
+            opacity: 0;
+        }
+
+        .modal-overlay.active {
+            opacity: 1;
+        }
+
+        .modal-card {
+            transform: translateY(16px) scale(0.97);
+            transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        .modal-overlay.active .modal-card {
+            transform: translateY(0) scale(1);
+        }
+
+        /* Clickable card */
+        .card-wrapper:not(.upload-card)[data-url] {
+            cursor: pointer;
+        }
+
+        .card-wrapper:not(.upload-card)[data-url]:hover .file-name-label {
+            color: var(--ink-black);
+            text-decoration: underline;
+        }
+
+        /* File size */
+        .file-size-label {
+            font-size: 0.58rem;
+            color: #bbb;
+            margin-top: 1px;
+        }
+
+        .rough-icon {
+            width: 80px;
+            height: 80px;
+        }
+
+        /* --- Upload card special styles --- */
+        .upload-card .card-body {
+            background: transparent;
+        }
+
+        .upload-card .file-preview {
+            height: 100%;
+        }
+
+        .upload-card {
+            cursor: pointer;
+        }
+
+        .upload-card:hover .card-body {
+            transform: translateY(-2px);
+        }
+
+        .upload-label {
+            font-family: 'Caveat', cursive;
+            font-size: 1.3rem;
+            font-weight: 700;
+            margin-top: 8px;
+            color: var(--ink-black);
+        }
+
+        .upload-sublabel {
+            font-size: 0.6rem;
+            color: #aaa;
+            margin-top: 3px;
+            letter-spacing: 0.5px;
+        }
+
+        .editor-card .file-preview {
+            color: var(--ink-black);
+        }
+
+        .editor-icon {
+            font-family: 'Caveat', cursive;
+            font-size: 2.4rem;
+            font-weight: 700;
+            line-height: 1;
+        }
+
+        .editor-textarea {
+            width: 100%;
+            min-height: 280px;
+            resize: vertical;
+            border: 1.5px solid #ddd;
+            border-radius: 0;
+            padding: 12px;
+            font-family: ui-monospace, 'Cascadia Code', 'Source Code Pro', Menlo, monospace;
+            font-size: 0.8rem;
+            line-height: 1.5;
+            color: var(--ink-black);
+            background: #faf8f5;
+            outline: none;
+            tab-size: 2;
+        }
+
+        .editor-textarea:focus {
+            border-color: #a29bfe;
+        }
+
+        .editor-filename-row {
+            display: flex;
+            gap: 8px;
+            align-items: stretch;
+        }
+
+        .editor-filename-row .setting-input {
+            flex: 1;
+        }
+
+        .format-chip {
+            padding: 6px 12px;
+            border: 1.5px solid #ddd;
+            background: #faf8f5;
+            font-family: 'Inter', sans-serif;
+            font-size: 0.72rem;
+            font-weight: 600;
+            color: #888;
+            cursor: pointer;
+            transition: all 0.15s;
+        }
+
+        .format-chip.active {
+            background: var(--ink-black);
+            border-color: var(--ink-black);
+            color: white;
+        }
+
+        /* --- COMMAND PALETTE --- */
+        .command-palette-overlay {
+            position: fixed;
+            inset: 0;
+            z-index: 3000;
+            display: none;
+            align-items: flex-start;
+            justify-content: center;
+            padding: 12vh 20px 20px;
+            background: rgba(0, 0, 0, 0.35);
+        }
+
+        .command-palette-overlay.active {
+            display: flex;
+        }
+
+        .command-palette {
+            width: 100%;
+            max-width: 480px;
+            background: white;
+            border: 2px solid var(--ink-black);
+            box-shadow: 8px 8px 0 rgba(45, 45, 45, 0.15);
+        }
+
+        .command-palette-input {
+            width: 100%;
+            border: none;
+            border-bottom: 1.5px solid #eee;
+            padding: 16px 18px;
+            font-family: 'Inter', sans-serif;
+            font-size: 0.95rem;
+            color: var(--ink-black);
+            background: #faf8f5;
+            outline: none;
+        }
+
+        .command-palette-input::placeholder {
+            color: #bbb;
+        }
+
+        .command-palette-list {
+            list-style: none;
+            margin: 0;
+            padding: 6px 0;
+            max-height: 320px;
+            overflow-y: auto;
+        }
+
+        .command-palette-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            padding: 10px 18px;
+            cursor: pointer;
+            transition: background 0.1s;
+        }
+
+        .command-palette-item:hover,
+        .command-palette-item.is-selected {
+            background: #f0eeea;
+        }
+
+        .command-palette-item.is-selected {
+            background: #e8e4ff;
+        }
+
+        .command-palette-label {
+            font-size: 0.88rem;
+            font-weight: 600;
+            color: var(--ink-black);
+        }
+
+        .command-palette-hint {
+            font-size: 0.68rem;
+            color: #aaa;
+            flex-shrink: 0;
+        }
+
+        .command-palette-empty {
+            padding: 20px 18px;
+            font-size: 0.82rem;
+            color: #aaa;
+            text-align: center;
+        }
+
+        .command-palette-footer {
+            display: flex;
+            gap: 14px;
+            padding: 10px 18px;
+            border-top: 1.5px solid #eee;
+            font-size: 0.65rem;
+            color: #bbb;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .rough-plus {
+            width: 46px;
+            height: 46px;
+        }
+
+        /* --- PROGRESS BAR --- */
+        .progress-container {
+            width: 80%;
+            height: 18px;
+            margin-top: 10px;
+            position: relative;
+        }
+
+        .progress-svg {
+            width: 100%;
+            height: 100%;
+            overflow: visible;
+        }
+
+        .progress-label {
+            font-family: 'Caveat', cursive;
+            font-size: 0.85rem;
+            font-weight: 700;
+            margin-top: 4px;
+            color: var(--ink-black);
+        }
+
+        /* --- BUTTON --- */
+        .copy-button {
+            position: relative;
+            background: transparent;
+            color: white;
+            border: none;
+            padding: 16px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            font-size: 0.7rem;
+            cursor: pointer;
+            width: 100%;
+            z-index: 4;
+            transition: opacity 0.15s;
+            font-family: 'Inter', sans-serif;
+        }
+
+        .copy-button:hover {
+            opacity: 0.88;
+        }
+
+        .btn-label {
+            position: relative;
+            z-index: 3;
+        }
+
+        .btn-bg-svg {
+            position: absolute;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            pointer-events: none;
+            z-index: 1;
+        }
+
+        /* Hidden input */
+        #fileInput { display: none; }
+
+        .modal-overlay {
+            position: fixed;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            background: rgba(0,0,0,0.25);
+            z-index: 2000;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .modal-overlay.active {
+            display: flex;
+        }
+
+        .modal-card {
+            background: white;
+            width: 100%;
+            max-width: 420px;
+            position: relative;
+            padding: 32px 28px 24px;
+        }
+
+        .modal-card-wide {
+            max-width: 640px;
+        }
+
+        .modal-border-svg {
+            position: absolute;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            pointer-events: none;
+            z-index: 1;
+            overflow: visible;
+        }
+
+        .modal-content {
+            position: relative;
+            z-index: 2;
+        }
+
+        .modal-title {
+            font-family: 'Caveat', cursive;
+            font-size: 1.6rem;
+            font-weight: 700;
+            margin-bottom: 4px;
+        }
+
+        .modal-filename {
+            font-size: 0.78rem;
+            color: #888;
+            margin-bottom: 20px;
+            word-break: break-all;
+        }
+
+        .setting-row {
+            margin-bottom: 18px;
+        }
+
+        .setting-label {
+            font-size: 0.75rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: #666;
+            margin-bottom: 8px;
+        }
+
+        .setting-input {
+            width: 100%;
+            border: 1.5px solid #ddd;
+            border-radius: 0;
+            padding: 10px 12px;
+            font-family: 'Inter', sans-serif;
+            font-size: 0.85rem;
+            color: var(--ink-black);
+            background: #faf8f5;
+            outline: none;
+            transition: border-color 0.15s;
+        }
+
+        .setting-input:focus {
+            border-color: #a29bfe;
+        }
+
+        .seg-buttons {
+            display: flex;
+            gap: 0;
+        }
+
+        .seg-btn {
+            flex: 1;
+            padding: 9px 6px;
+            border: 1.5px solid #ddd;
+            background: #faf8f5;
+            font-family: 'Inter', sans-serif;
+            font-size: 0.72rem;
+            font-weight: 600;
+            color: #888;
+            cursor: pointer;
+            transition: all 0.15s;
+            text-align: center;
+        }
+
+        .seg-btn + .seg-btn {
+            border-left: none;
+        }
+
+        .seg-btn.active {
+            background: var(--ink-black);
+            border-color: var(--ink-black);
+            color: white;
+        }
+
+        .expiry-presets {
+            display: flex;
+            gap: 6px;
+            flex-wrap: wrap;
+        }
+
+        .expiry-chip {
+            padding: 6px 14px;
+            border: 1.5px solid #ddd;
+            background: #faf8f5;
+            font-family: 'Inter', sans-serif;
+            font-size: 0.72rem;
+            font-weight: 600;
+            color: #888;
+            cursor: pointer;
+            transition: all 0.15s;
+        }
+
+        .expiry-chip.active {
+            background: var(--ink-black);
+            border-color: var(--ink-black);
+            color: white;
+        }
+
+        .modal-actions {
+            display: flex;
+            gap: 10px;
+            margin-top: 24px;
+        }
+
+        .modal-btn {
+            flex: 1;
+            padding: 12px;
+            border: 1.5px solid var(--ink-black);
+            font-family: 'Caveat', cursive;
+            font-size: 1.15rem;
+            font-weight: 700;
+            cursor: pointer;
+            text-align: center;
+            transition: all 0.15s;
+        }
+
+        .modal-btn-cancel {
+            background: white;
+            color: var(--ink-black);
+        }
+
+        .modal-btn-cancel:hover {
+            background: #f0f0f0;
+        }
+
+        .modal-btn-upload {
+            background: var(--ink-black);
+            color: white;
+        }
+
+        .modal-btn-upload:hover {
+            opacity: 0.85;
+        }
+
+        .modal-btn-danger {
+            background: #e74c3c;
+            border-color: #e74c3c;
+            color: white;
+        }
+
+        .modal-btn-danger:hover {
+            opacity: 0.9;
+        }
+
+        #confirmModal.modal-overlay {
+            z-index: 3500;
+        }
+
+        /* SEO Footer */
+        .seo-footer {
+            max-width: 800px;
+            margin: 60px auto 40px;
+            padding: 0 40px;
+            text-align: center;
+            color: #888;
+        }
+
+        .seo-footer h2 {
+            font-family: 'Caveat', cursive;
+            font-size: 1.8rem;
+            color: var(--ink-black);
+            margin-bottom: 12px;
+        }
+
+        .seo-footer p {
+            font-size: 0.85rem;
+            line-height: 1.6;
+            margin-bottom: 16px;
+        }
+
+        /* Mobile */
+        @media (max-width: 600px) {
+            .grid-row { padding: 16px 20px 40px; }
+            .card-grid { gap: 36px; }
+            .site-header { padding: 20px 20px 4px; }
+            .site-header h1 { font-size: 1.8rem; }
+            .modal-card { padding: 24px 20px 20px; }
+            .seo-footer { margin: 40px auto 30px; padding: 0 20px; }
+        }
+    </style>
+</head>
+<body>
+
+    <main class="app-container">
+        <header class="site-header">
+            <svg class="header-scribble"></svg>
+            <div>
+                <h1>tempfile</h1>
+                <div class="site-subtitle" id="siteSubtitle">Share files temporarily — they expire automatically</div>
+            </div>
+        </header>
+
+        <div class="upload-scrim" id="uploadScrim"></div>
+        <section class="upload-row paper-texture" id="uploadRow">
+            <input type="file" id="fileInput">
+            <div class="upload-area" onclick="document.getElementById('fileInput').click()">
+                <svg class="card-border-svg upload-border-svg"></svg>
+                <svg class="rough-plus"></svg>
+                <p>Drop your files here</p>
+            </div>
+        </section>
+
+        <section class="grid-row">
+            <div class="card-grid" id="cardGrid">
+                <!-- Upload card -->
+                <div class="card-wrapper upload-card" onclick="document.getElementById('fileInput').click()">
+                    <svg class="card-shadow-svg"></svg>
+                    <div class="card-body">
+                        <svg class="card-border-svg" data-style="dashed"></svg>
+                        <div class="file-preview">
+                            <svg class="rough-plus"></svg>
+                            <span class="upload-label">Upload File</span>
+                            <span class="upload-sublabel">or drag & drop multiple files</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Editor card -->
+                <div class="card-wrapper upload-card editor-card" id="editorCard">
+                    <svg class="card-shadow-svg"></svg>
+                    <div class="card-body">
+                        <svg class="card-border-svg" data-style="dashed"></svg>
+                        <div class="file-preview">
+                            <span class="editor-icon" aria-hidden="true">✎</span>
+                            <span class="upload-label">Create File</span>
+                            <span class="upload-sublabel">write in the editor</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Ad Banner Card -->
+                <div class="card-wrapper ad-card" data-color-index="7" onclick="window.open('https://www.profitablecpmratenetwork.com/h3ch9xkhxk?key=21cbe4eb91ce2fb22a6aeaf24a84323e', '_blank')" style="cursor: pointer;">
+                    <svg class="card-shadow-svg"></svg>
+                    <div class="card-body">
+                        <svg class="card-border-svg" data-style="solid"></svg>
+                        <span class="ttl-badge ttl-warn">Ad</span>
+                        <div class="file-preview" style="padding: 0 12px; text-align: center;">
+                            <svg class="rough-icon" data-icon="img"></svg>
+                            <span class="file-type-label" style="color: #fdcb6e;">SPONSOR</span>
+                            <span id="ad-message" class="file-name-label" style="white-space: normal; overflow: visible; font-size: 0.8rem; margin-top: 8px; color: var(--ink-black); line-height: 1.3;">Click this before we go bankrupt hosting your temporary files. 💸</span>
+                        </div>
+                        <button class="copy-button" style="pointer-events: none;">
+                            <svg class="btn-bg-svg"></svg>
+                            <span class="btn-label">Support Us</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Command palette -->
+        <div class="command-palette-overlay" id="commandPalette" role="dialog" aria-modal="true" aria-label="Search actions">
+            <div class="command-palette">
+                <input
+                    type="text"
+                    class="command-palette-input"
+                    id="commandPaletteInput"
+                    placeholder="Search actions…"
+                    autocomplete="off"
+                    spellcheck="false"
+                    aria-controls="commandPaletteList"
+                    aria-autocomplete="list"
+                >
+                <ul class="command-palette-list" id="commandPaletteList" role="listbox"></ul>
+                <div class="command-palette-footer">
+                    <span id="commandPaletteOpenHint">Ctrl+/ open</span>
+                    <span>↑↓ navigate</span>
+                    <span>↵ run</span>
+                    <span>esc close</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Editor Modal -->
+        <div class="modal-overlay" id="editorModal">
+            <div class="modal-card modal-card-wide">
+                <svg class="modal-border-svg"></svg>
+                <div class="modal-content">
+                    <div class="modal-title">Create a file</div>
+                    <p class="modal-filename" id="editorHint">Drafts save automatically — each file appears on the home screen.</p>
+
+                    <div class="setting-row">
+                        <div class="setting-label">File name</div>
+                        <div class="editor-filename-row">
+                            <input type="text" class="setting-input" id="editorFilename" value="note.txt" autocomplete="off" spellcheck="false">
+                        </div>
+                    </div>
+
+                    <div class="setting-row">
+                        <div class="setting-label">Format</div>
+                        <div class="expiry-presets" id="editorFormatChips">
+                            <button type="button" class="format-chip active" data-ext="txt">.txt</button>
+                            <button type="button" class="format-chip" data-ext="md">.md</button>
+                            <button type="button" class="format-chip" data-ext="json">.json</button>
+                            <button type="button" class="format-chip" data-ext="html">.html</button>
+                            <button type="button" class="format-chip" data-ext="js">.js</button>
+                            <button type="button" class="format-chip" data-ext="css">.css</button>
+                        </div>
+                    </div>
+
+                    <div class="setting-row">
+                        <div class="setting-label">Content</div>
+                        <textarea class="editor-textarea" id="editorContent" placeholder="Start typing…"></textarea>
+                    </div>
+
+                    <div class="modal-actions">
+                        <button type="button" class="modal-btn modal-btn-cancel" id="editorCancel">Cancel</button>
+                        <button type="button" class="modal-btn modal-btn-upload" id="editorContinue">Continue →</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Settings Modal -->
+        <div class="modal-overlay" id="settingsModal">
+            <div class="modal-card">
+                <svg class="modal-border-svg"></svg>
+                <div class="modal-content">
+                    <div class="modal-title">Upload Settings</div>
+                    <div class="modal-filename" id="modalFilename"></div>
+
+                    <div class="setting-row">
+                        <div class="setting-label">Rename file</div>
+                        <input type="text" class="setting-input" id="settingFilename" placeholder="Keep original name">
+                    </div>
+
+                    <div class="setting-row">
+                        <div class="setting-label">When someone opens the link…</div>
+                        <div class="seg-buttons">
+                            <button class="seg-btn active" data-disp="inline">👁 Preview</button>
+                            <button class="seg-btn" data-disp="attachment">⬇️ Download</button>
+                            <button class="seg-btn" data-disp="">Auto</button>
+                        </div>
+                    </div>
+
+                    <div class="setting-row">
+                        <div class="setting-label">File available for…</div>
+                        <div class="expiry-presets">
+                            <button class="expiry-chip active" data-val="86400">1 day</button>
+                            <button class="expiry-chip" data-val="172800">2 days</button>
+                            <button class="expiry-chip" data-val="259200">3 days</button>
+                            <button class="expiry-chip" data-val="432000">5 days</button>
+                            <button class="expiry-chip" data-val="604800">1 week</button>
+                        </div>
+                    </div>
+
+                    <div class="modal-actions">
+                        <button class="modal-btn modal-btn-cancel" id="modalCancel">Cancel</button>
+                        <button class="modal-btn modal-btn-upload" id="modalUpload">Upload →</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Confirm dialog -->
+        <div class="modal-overlay" id="confirmModal">
+            <div class="modal-card">
+                <svg class="modal-border-svg"></svg>
+                <div class="modal-content">
+                    <div class="modal-title" id="confirmTitle">Remove file?</div>
+                    <p class="modal-filename" id="confirmMessage"></p>
+                    <p class="modal-filename" id="confirmFileName" style="font-weight: 700; color: var(--ink-black);"></p>
+                    <div class="modal-actions">
+                        <button type="button" class="modal-btn modal-btn-cancel" id="confirmCancel">Cancel</button>
+                        <button type="button" class="modal-btn modal-btn-danger" id="confirmOk">Remove</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Toast -->
+        <div class="toast" id="toast"></div>
+
+        <section class="seo-footer">
+            <h2>Why Tempfile?</h2>
+            <p><strong>Tempfile</strong> is built with a simple motive: to provide a clean, secure, and minimal way to share files temporarily. We share so many documents, images, and videos every day that only need to be accessed for a short time. Keeping them indefinitely wastes storage and increases privacy risks.</p>
+            <p>By automatically expiring uploads after a specified duration—from a single day up to one week—Tempfile ensures your digital footprint remains small. There are no accounts to create and no tracking involved. It's just fast, ephemeral file sharing designed for the modern web.</p>
+            
+            <div style="margin-top: 30px; font-size: 0.85rem; display: flex; justify-content: center; gap: 20px;">
+                <a href="/about.html" style="color: #666; text-decoration: none;">About</a>
+                <a href="/privacy.html" style="color: #666; text-decoration: none;">Privacy Policy</a>
+                <a href="/terms.html" style="color: #666; text-decoration: none;">Terms of Service</a>
+            </div>
+        </section>
+    </main>
+
+    <svg style="position: absolute; width: 0; height: 0;">
+        <filter id="grainy">
+            <feTurbulence type="fractalNoise" baseFrequency="0.65" numOctaves="3" stitchTiles="stitch"/>
+            <feColorMatrix type="saturate" values="0"/>
+            <feBlend mode="multiply" in2="SourceGraphic"/>
+        </filter>
+    </svg>
+
+    <script src="https://unpkg.com/roughjs@4.5.2/bundled/rough.js"></script>
+
+    <script>
+        // ========== COLOR PALETTE ==========
+        const COLORS = [
+            '#ff6b6b', // coral
+            '#4ecdc4', // teal
+            '#a29bfe', // purple
+            '#fd79a8', // pink
+            '#74b9ff', // sky
+            '#e17055', // burnt orange
+            '#00b894', // emerald
+            '#fdcb6e', // golden
+        ];
+
+        function colorIndexForFilename(filename) {
+            const name = String(filename || '').trim().toLowerCase();
+            if (!name) return 0;
+            let hash = 0;
+            for (let i = 0; i < name.length; i++) {
+                hash = (Math.imul(31, hash) + name.charCodeAt(i)) | 0;
+            }
+            return Math.abs(hash) % COLORS.length;
+        }
+
+        function getCardColor(wrapper) {
+            const idx = parseInt(wrapper.dataset.colorIndex || '0', 10);
+            return COLORS[idx % COLORS.length];
+        }
+
+        // ========== ROUGH CONFIGS ==========
+        const ROUGH_BASE = { roughness: 1.8, bowing: 1.5, seed: 42 };
+        const SHADOW_OFFSET = 8;
+
+        // ========== MASTER DRAW ==========
+        function drawAll() {
+            drawCardShadows();
+            drawCardBorders();
+            drawButtons();
+            drawPlusSigns();
+            drawIcons();
+            drawPinIcons();
+            drawHeaderScribble();
+            drawUploadBorder();
+        }
+
+        let drawAllPending = false;
+        function scheduleDrawAll() {
+            if (drawAllPending) return;
+            drawAllPending = true;
+            requestAnimationFrame(() => {
+                drawAllPending = false;
+                drawAll();
+            });
+        }
+
+        // ========== CARD SHADOWS ==========
+        function drawCardShadows() {
+            document.querySelectorAll('.card-wrapper:not(.upload-card) .card-shadow-svg').forEach(svg => {
+                svg.innerHTML = '';
+                const rc = rough.svg(svg);
+                const w = svg.clientWidth;
+                const h = svg.clientHeight;
+                const wrapper = svg.closest('.card-wrapper');
+                const color = wrapper ? getCardColor(wrapper) : COLORS[0];
+
+                svg.appendChild(rc.rectangle(SHADOW_OFFSET, SHADOW_OFFSET, w - 2, h - 2, {
+                    ...ROUGH_BASE,
+                    strokeWidth: 0,
+                    fill: color,
+                    fillStyle: 'zigzag',
+                    hachureGap: 4,
+                    fillWeight: 1.8,
+                    seed: 99,
+                }));
+            });
+        }
+
+        // ========== CARD BORDERS ==========
+        function drawCardBorders() {
+            document.querySelectorAll('.card-border-svg[data-style]').forEach(svg => {
+                svg.innerHTML = '';
+                const rc = rough.svg(svg);
+                const w = svg.clientWidth;
+                const h = svg.clientHeight;
+                const wrapper = svg.closest('.card-wrapper');
+                const color = wrapper ? getCardColor(wrapper) : '#bbb';
+                const style = svg.dataset.style;
+
+                if (style === 'dashed') {
+                    svg.appendChild(rc.rectangle(1, 1, w - 2, h - 2, {
+                        ...ROUGH_BASE,
+                        stroke: '#ccc',
+                        strokeWidth: 2,
+                        strokeLineDash: [10, 8],
+                    }));
+                } else {
+                    // Outer border
+                    svg.appendChild(rc.rectangle(1, 1, w - 2, h - 2, {
+                        ...ROUGH_BASE,
+                        stroke: color,
+                        strokeWidth: 2.5,
+                    }));
+
+                    // Divider line between preview and button
+                    const btn = svg.parentElement.querySelector('.copy-button');
+                    if (btn) {
+                        const btnH = btn.offsetHeight;
+                        const dividerY = h - btnH;
+                        svg.appendChild(rc.line(1, dividerY, w - 1, dividerY, {
+                            ...ROUGH_BASE,
+                            stroke: color,
+                            strokeWidth: 2,
+                        }));
+                    }
+                }
+            });
+        }
+
+        // ========== UPLOAD AREA BORDER ==========
+        function drawUploadBorder() {
+            const svg = document.querySelector('.upload-border-svg');
+            if (!svg) return;
+            svg.innerHTML = '';
+            const rc = rough.svg(svg);
+            const w = svg.clientWidth;
+            const h = svg.clientHeight;
+            svg.appendChild(rc.rectangle(1, 1, w - 2, h - 2, {
+                ...ROUGH_BASE,
+                stroke: '#ccc',
+                strokeWidth: 2,
+                strokeLineDash: [10, 8],
+            }));
+        }
+
+        // ========== BUTTONS ==========
+        function drawButtons() {
+            document.querySelectorAll('.btn-bg-svg').forEach(svg => {
+                svg.innerHTML = '';
+                const rc = rough.svg(svg);
+                const w = svg.clientWidth;
+                const h = svg.clientHeight;
+                const wrapper = svg.closest('.card-wrapper');
+                const color = wrapper ? getCardColor(wrapper) : COLORS[0];
+
+                svg.appendChild(rc.rectangle(0, 0, w, h, {
+                    ...ROUGH_BASE,
+                    stroke: 'transparent',
+                    strokeWidth: 0,
+                    fill: color,
+                    fillStyle: 'zigzag',
+                    hachureGap: 3,
+                    fillWeight: 2.2,
+                    seed: 77,
+                }));
+            });
+        }
+
+        // ========== PLUS SIGNS ==========
+        function drawPlusSigns() {
+            document.querySelectorAll('.rough-plus').forEach(svg => {
+                svg.innerHTML = '';
+                const rc = rough.svg(svg);
+                const w = svg.clientWidth;
+                const h = svg.clientHeight;
+                const cx = w / 2, cy = h / 2;
+                const len = Math.min(w, h) * 0.34;
+                const cfg = { ...ROUGH_BASE, stroke: '#bbb', strokeWidth: 2.5 };
+                svg.appendChild(rc.line(cx, cy - len, cx, cy + len, cfg));
+                svg.appendChild(rc.line(cx - len, cy, cx + len, cy, cfg));
+            });
+        }
+
+        // ========== HEADER SCRIBBLE ==========
+        function drawHeaderScribble() {
+            const svg = document.querySelector('.header-scribble');
+            if (!svg) return;
+            svg.innerHTML = '';
+            const rc = rough.svg(svg);
+            const s = svg.clientWidth;
+
+            svg.appendChild(rc.circle(s/2, s/2, s * 0.75, {
+                ...ROUGH_BASE,
+                stroke: COLORS[0],
+                strokeWidth: 2.5,
+                fill: COLORS[7],
+                fillStyle: 'cross-hatch',
+                hachureGap: 4,
+                fillWeight: 1.2,
+                roughness: 2.5,
+                seed: 13,
+            }));
+            svg.appendChild(rc.circle(s/2 + 3, s/2 - 2, s * 0.3, {
+                ...ROUGH_BASE,
+                stroke: COLORS[2],
+                strokeWidth: 2,
+                fill: COLORS[2],
+                fillStyle: 'zigzag',
+                hachureGap: 2.5,
+                fillWeight: 1,
+                roughness: 2,
+                seed: 17,
+            }));
+        }
+
+        // ========== ICONS ==========
+        function drawIcon(svg, iconType) {
+            svg.innerHTML = '';
+            const rc = rough.svg(svg);
+            const w = svg.clientWidth;
+            const h = svg.clientHeight;
+            const pad = 10;
+            const wrapper = svg.closest('.card-wrapper');
+            const color = wrapper ? getCardColor(wrapper) : COLORS[0];
+            const cfg = { ...ROUGH_BASE, stroke: color, strokeWidth: 2 };
+
+            switch (iconType) {
+                case 'text':
+                    svg.appendChild(rc.rectangle(pad, pad, w-pad*2, h-pad*2, cfg));
+                    [0.3, 0.5, 0.7].forEach((pct, i) => {
+                        const y = pad + (h-pad*2) * pct;
+                        const end = i === 2 ? w - pad - 22 : w - pad - 10;
+                        svg.appendChild(rc.line(pad+10, y, end, y, cfg));
+                    });
+                    break;
+
+                case 'img':
+                    svg.appendChild(rc.rectangle(pad, pad, w-pad*2, h-pad*2, cfg));
+                    svg.appendChild(rc.circle(pad+20, pad+20, 14, {
+                        ...cfg,
+                        fill: COLORS[7],
+                        fillStyle: 'zigzag',
+                        hachureGap: 2,
+                        fillWeight: 1,
+                    }));
+                    svg.appendChild(rc.linearPath([
+                        [pad+4, h-pad-4],
+                        [w/2-4, pad+30],
+                        [w/2+10, pad+42],
+                        [w-pad-4, h-pad-4]
+                    ], cfg));
+                    break;
+
+                case 'video':
+                    svg.appendChild(rc.rectangle(pad, pad, w-pad*2, h-pad*2, cfg));
+                    const cx = w/2, cy = h/2;
+                    svg.appendChild(rc.polygon([
+                        [cx-10, cy-14],
+                        [cx+14, cy],
+                        [cx-10, cy+14]
+                    ], {
+                        ...cfg,
+                        fill: color,
+                        fillStyle: 'zigzag',
+                        hachureGap: 3,
+                        fillWeight: 1,
+                    }));
+                    break;
+
+                case 'word':
+                    svg.appendChild(rc.rectangle(pad, pad, w-pad*2, h-pad*2, cfg));
+                    svg.appendChild(rc.linearPath([
+                        [pad+14, pad+20],
+                        [pad+22, h-pad-16],
+                        [w/2, pad+32],
+                        [w-pad-22, h-pad-16],
+                        [w-pad-14, pad+20]
+                    ], { ...cfg, strokeWidth: 2.5 }));
+                    break;
+
+                default:
+                    svg.appendChild(rc.rectangle(pad, pad, w-pad*2, h-pad*2, cfg));
+                    break;
+            }
+        }
+
+        function drawIcons() {
+            document.querySelectorAll('.rough-icon').forEach(svg => {
+                drawIcon(svg, svg.dataset.icon || 'text');
+            });
+        }
+
+        function drawBookmarkIcon(svg, filled) {
+            svg.innerHTML = '';
+            const rc = rough.svg(svg);
+            const w = svg.clientWidth || 15;
+            const h = svg.clientHeight || 15;
+            const pad = 1.5;
+            const stroke = filled ? '#6c5ce7' : '#777';
+            const path = `M ${pad} ${pad} L ${w - pad} ${pad} L ${w - pad} ${h - pad - 1} L ${w / 2} ${h - pad - 4} L ${pad} ${h - pad - 1} Z`;
+            const cfg = { ...ROUGH_BASE, stroke, strokeWidth: 1.6, seed: 41 };
+            svg.appendChild(
+                rc.path(path, filled ? {
+                    ...cfg,
+                    fill: '#a29bfe',
+                    fillStyle: 'zigzag',
+                    hachureGap: 2.5,
+                    fillWeight: 1.1,
+                } : cfg)
+            );
+        }
+
+        function drawPinIcons() {
+            document.querySelectorAll('.rough-pin').forEach((svg) => {
+                const btn = svg.closest('.card-pin-btn');
+                const filled = Boolean(
+                    btn?.classList.contains('is-active') ||
+                    btn?.closest('.card-wrapper')?.classList.contains('is-pinned')
+                );
+                drawBookmarkIcon(svg, filled);
+            });
+        }
+
+        // ========== RESIZE OBSERVER ==========
+        const ro = new ResizeObserver(() => scheduleDrawAll());
+
+        window.addEventListener('load', () => {
+            const grid = document.getElementById('cardGrid');
+            if (grid) ro.observe(grid);
+
+            const uploadArea = document.querySelector('.upload-area');
+            if (uploadArea) ro.observe(uploadArea);
+
+            drawAll();
+        });
+
+        // ========== TTL HELPERS ==========
+        function fmtTtl(expiresAt) {
+            const diff = expiresAt - Date.now();
+            if (diff <= 0) return { text: 'Expired', cls: 'ttl-dead' };
+            const m = Math.floor(diff / 60000);
+            const h = Math.floor(diff / 3600000);
+            const d = Math.floor(diff / 86400000);
+            if (d > 0) return { text: `${d}d left`, cls: 'ttl-ok' };
+            if (h > 0) return { text: `${h}h left`, cls: 'ttl-ok' };
+            if (m > 10) return { text: `${m}m left`, cls: 'ttl-warn' };
+            return { text: `${m}m left`, cls: 'ttl-danger' };
+        }
+
+        function refreshAllTtl() {
+            let justExpired = false;
+            document.querySelectorAll('.ttl-badge[data-expires]').forEach((badge) => {
+                const expiresAt = parseInt(badge.dataset.expires, 10);
+                const wasDead = badge.classList.contains('ttl-dead');
+                const { text, cls } = fmtTtl(expiresAt);
+                badge.textContent = text;
+                badge.className = 'ttl-badge ' + cls;
+                if (!wasDead && cls === 'ttl-dead') justExpired = true;
+            });
+            if (justExpired) {
+                CardPins.pruneExpiredUploadPins();
+                renderActivityCards();
+            }
+        }
+
+        // Refresh TTL labels every 30 seconds
+        setInterval(refreshAllTtl, 30000);
+
+        // ========== PROGRESS BAR ==========
+        function drawProgress(svg, pct, color) {
+            svg.innerHTML = '';
+            const rc = rough.svg(svg);
+            const w = svg.clientWidth;
+            const h = svg.clientHeight;
+            if (w === 0 || h === 0) return;
+
+            // Background track
+            svg.appendChild(rc.rectangle(0, 0, w, h, {
+                ...ROUGH_BASE,
+                stroke: '#ddd',
+                strokeWidth: 1.5,
+                roughness: 1.2,
+                seed: 55,
+            }));
+
+            // Filled portion
+            const fillW = Math.max(4, w * Math.min(pct, 1));
+            svg.appendChild(rc.rectangle(0, 0, fillW, h, {
+                ...ROUGH_BASE,
+                stroke: color,
+                strokeWidth: 1.5,
+                fill: color,
+                fillStyle: 'zigzag',
+                hachureGap: 3,
+                fillWeight: 1.5,
+                roughness: 1,
+                seed: 55,
+            }));
+        }
+
+        // ========== TOAST ==========
+        function showToast(msg, duration = 2200) {
+            const t = document.getElementById('toast');
+            t.textContent = msg;
+            t.classList.add('show');
+            setTimeout(() => t.classList.remove('show'), duration);
+        }
+
+        // ========== COPY TO CLIPBOARD ==========
+        function copyToClipboard(text, button) {
+            navigator.clipboard.writeText(text).then(() => {
+                const label = button.querySelector('.btn-label');
+                const orig = label.innerText;
+                label.innerText = "Copied!";
+
+                // Green flash
+                const svg = button.querySelector('.btn-bg-svg');
+                if (svg) {
+                    svg.innerHTML = '';
+                    const rc = rough.svg(svg);
+                    svg.appendChild(rc.rectangle(0, 0, svg.clientWidth, svg.clientHeight, {
+                        ...ROUGH_BASE,
+                        stroke: 'transparent',
+                        strokeWidth: 0,
+                        fill: '#27ae60',
+                        fillStyle: 'zigzag',
+                        hachureGap: 3,
+                        fillWeight: 2.2,
+                        seed: 77,
+                    }));
+                }
+
+                showToast('✓ Link copied to clipboard');
+
+                setTimeout(() => {
+                    label.innerText = orig;
+                    drawButtons();
+                }, 1800);
+            });
+        }
+
+        // ========== API CONFIG ==========
+        const API_URL = 'https://tmp-file-media-func-4epls.bunny.run';
+        const HISTORY_KEY = 'media_uploads';
+        const PINS_KEY = 'tempfile_pinned_cards';
+
+        function getUploadHistory() {
+            try {
+                const list = JSON.parse(localStorage.getItem(HISTORY_KEY) || '[]');
+                return Array.isArray(list) ? list : [];
+            } catch {
+                return [];
+            }
+        }
+
+        function isUploadExpired(itemOrUrl) {
+            const item =
+                typeof itemOrUrl === 'string'
+                    ? getUploadHistory().find((u) => u.url === itemOrUrl)
+                    : itemOrUrl;
+            if (!item?.url) return true;
+            return Boolean(item.expiresAt && item.expiresAt < Date.now());
+        }
+
+        // ========== CARD PINS ==========
+        const CardPins = (function () {
+            function isValidPin(p) {
+                return (
+                    p &&
+                    (p.type === 'draft' || p.type === 'upload') &&
+                    typeof p.id === 'string' &&
+                    p.id.trim().length > 0 &&
+                    Number.isFinite(p.pinnedAt)
+                );
+            }
+
+            function load() {
+                try {
+                    const parsed = JSON.parse(localStorage.getItem(PINS_KEY) || '[]');
+                    if (!Array.isArray(parsed)) {
+                        save([]);
+                        return [];
+                    }
+                    const pins = parsed.filter(isValidPin);
+                    if (pins.length !== parsed.length) save(pins);
+                    return pins;
+                } catch {
+                    save([]);
+                    return [];
+                }
+            }
+
+            function save(pins) {
+                localStorage.setItem(PINS_KEY, JSON.stringify(pins.filter(isValidPin)));
+            }
+
+            function find(type, id) {
+                if (!id || typeof id !== 'string') return null;
+                return load().find((p) => p.type === type && p.id === id) || null;
+            }
+
+            function isPinned(type, id) {
+                return find(type, id) !== null;
+            }
+
+            function removePin(type, id) {
+                if (!id) return;
+                save(load().filter((p) => !(p.type === type && p.id === id)));
+            }
+
+            function pruneExpiredUploadPins() {
+                const next = load().filter((p) => p.type !== 'upload' || !isUploadExpired(p.id));
+                if (next.length !== load().length) save(next);
+            }
+
+            function toggle(type, id) {
+                if (!id || typeof id !== 'string') return;
+                let pins = load();
+                const idx = pins.findIndex((p) => p.type === type && p.id === id);
+                if (idx >= 0) {
+                    pins.splice(idx, 1);
+                } else {
+                    if (type === 'upload' && isUploadExpired(id)) return;
+                    pins.push({ type, id, pinnedAt: Date.now() });
+                }
+                save(pins);
+                renderActivityCards();
+            }
+
+            function compareEntries(a, b) {
+                const pinOf = (entry) => {
+                    if (entry.kind === 'draft') return find('draft', entry.data?.id);
+                    if (entry.kind === 'upload') {
+                        if (isUploadExpired(entry.data)) return null;
+                        return find('upload', entry.data?.url);
+                    }
+                    return null;
+                };
+                const pinA = pinOf(a);
+                const pinB = pinOf(b);
+                if (pinA && !pinB) return -1;
+                if (!pinA && pinB) return 1;
+                if (pinA && pinB) return pinB.pinnedAt - pinA.pinnedAt;
+                return b.sortTime - a.sortTime;
+            }
+
+            return { isPinned, toggle, removePin, find, compareEntries, pruneExpiredUploadPins };
+        })();
+
+        function attachCardPinButton(wrapper, type, id) {
+            if (type === 'upload' && isUploadExpired(id)) {
+                CardPins.removePin('upload', id);
+                return;
+            }
+
+            const pinned = CardPins.find(type, id);
+            const btn = document.createElement('button');
+            btn.type = 'button';
+            btn.className = 'card-pin-btn' + (pinned ? ' is-active' : '');
+            btn.title = pinned ? 'Unpin' : 'Pin to top';
+            btn.setAttribute('aria-label', btn.title);
+            btn.setAttribute('aria-pressed', pinned ? 'true' : 'false');
+            btn.innerHTML = '<svg class="rough-pin" aria-hidden="true"></svg>';
+
+            wrapper.classList.remove('is-pinned');
+            delete wrapper.dataset.pinnedAt;
+
+            if (pinned) {
+                wrapper.classList.add('is-pinned');
+                wrapper.dataset.pinnedAt = String(pinned.pinnedAt);
+            }
+
+            btn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                CardPins.toggle(type, id);
+            });
+            wrapper.appendChild(btn);
+        }
+
+        // ========== UPLOAD CONFIG ==========
+        const UPLOAD_CONFIG = {
+            DEFAULT_TTL_SECONDS: 86400,
+            DROP: {
+                TTL_SECONDS: 259200, // 3 days
+                MAX_FILES: 10,
+                DISPOSITION: 'inline',
+                RANDOM_PREFIX_LENGTH: 8,
+            },
+            EDITOR: {
+                DEFAULT_EXTENSION: 'txt',
+                DRAFTS_KEY: 'tempfile_editor_drafts',
+                LEGACY_DRAFT_KEY: 'tempfile_editor_draft',
+                DRAFT_SAVE_MS: 400,
+                MAX_DRAFTS: 30,
+                RANDOM_PREFIX_LENGTH: 8,
+            },
+        };
+
+        function randomPrefixedFilename(name, prefixLength = UPLOAD_CONFIG.EDITOR.RANDOM_PREFIX_LENGTH) {
+            const code = crypto.randomUUID().replace(/-/g, '').slice(0, prefixLength);
+            return `${code}_${name}`;
+        }
+
+        function escapeHtml(str) {
+            return String(str)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;');
+        }
+
+        function fmtDraftAge(ts) {
+            const diff = Date.now() - ts;
+            const m = Math.floor(diff / 60000);
+            if (m < 1) return 'just now';
+            if (m < 60) return `${m}m ago`;
+            const h = Math.floor(diff / 3600000);
+            if (h < 24) return `${h}h ago`;
+            return `${Math.floor(diff / 86400000)}d ago`;
+        }
+
+        // Identity — persist a secret token per browser
+        let secretToken = localStorage.getItem('media_secret_token');
+        if (!secretToken) {
+            secretToken = crypto.randomUUID();
+            localStorage.setItem('media_secret_token', secretToken);
+        }
+
+        // ========== FILE STAGING ==========
+        let pendingFile = null;
+
+        function drawModalBorder(modalEl) {
+            requestAnimationFrame(() => {
+                const svg = modalEl.querySelector('.modal-border-svg');
+                if (!svg) return;
+                svg.innerHTML = '';
+                const rc = rough.svg(svg);
+                const w = svg.clientWidth;
+                const h = svg.clientHeight;
+                svg.appendChild(rc.rectangle(1, 1, w - 2, h - 2, {
+                    ...ROUGH_BASE,
+                    stroke: '#2d2d2d',
+                    strokeWidth: 2.5,
+                }));
+            });
+        }
+
+        function showSettingsModal(file) {
+            pendingFile = file;
+            document.getElementById('modalFilename').textContent = file.name;
+            document.getElementById('settingFilename').value = file.name;
+
+            // Reset disposition
+            document.querySelectorAll('.seg-btn').forEach(b => b.classList.remove('active'));
+            document.querySelector('.seg-btn[data-disp="inline"]').classList.add('active');
+
+            // Reset expiry
+            document.querySelectorAll('.expiry-chip').forEach(b => b.classList.remove('active'));
+            document.querySelector('.expiry-chip[data-val="86400"]').classList.add('active');
+
+            const modal = document.getElementById('settingsModal');
+            modal.classList.add('active');
+            drawModalBorder(modal);
+        }
+
+        function closeSettingsModal() {
+            pendingFile = null;
+            document.getElementById('settingsModal').classList.remove('active');
+        }
+
+        function getModalSettings() {
+            const filename = document.getElementById('settingFilename').value.trim() || pendingFile.name;
+            const activeDisp = document.querySelector('.seg-btn.active');
+            const disposition = activeDisp ? activeDisp.dataset.disp : 'inline';
+            const activeExpiry = document.querySelector('.expiry-chip.active');
+            const cacheDuration = activeExpiry
+                ? parseInt(activeExpiry.dataset.val, 10)
+                : UPLOAD_CONFIG.DEFAULT_TTL_SECONDS;
+            return { filename, disposition, cacheDuration };
+        }
+
+        // Disposition segmented buttons
+        document.querySelectorAll('.seg-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                document.querySelectorAll('.seg-btn').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+            });
+        });
+
+        // Expiry chips
+        document.querySelectorAll('.expiry-chip').forEach(chip => {
+            chip.addEventListener('click', () => {
+                document.querySelectorAll('.expiry-chip').forEach(c => c.classList.remove('active'));
+                chip.classList.add('active');
+            });
+        });
+
+        // Cancel button
+        document.getElementById('modalCancel').addEventListener('click', closeSettingsModal);
+
+        // Close on overlay click
+        document.getElementById('settingsModal').addEventListener('click', (e) => {
+            if (e.target === e.currentTarget) closeSettingsModal();
+        });
+
+        // ========== CONFIRM DIALOG ==========
+        const ConfirmDialog = (function () {
+            const modal = document.getElementById('confirmModal');
+            const titleEl = document.getElementById('confirmTitle');
+            const messageEl = document.getElementById('confirmMessage');
+            const fileNameEl = document.getElementById('confirmFileName');
+            let resolver = null;
+
+            function close(result) {
+                modal.classList.remove('active');
+                const fn = resolver;
+                resolver = null;
+                if (fn) fn(result);
+            }
+
+            function showConfirm({ title, message, fileName, danger = true }) {
+                return new Promise((resolve) => {
+                    resolver = resolve;
+                    titleEl.textContent = title || 'Confirm';
+                    messageEl.textContent = message || '';
+                    fileNameEl.textContent = fileName || '';
+                    fileNameEl.style.display = fileName ? 'block' : 'none';
+                    const okBtn = document.getElementById('confirmOk');
+                    okBtn.textContent = danger ? 'Remove' : 'OK';
+                    okBtn.className = danger ? 'modal-btn modal-btn-danger' : 'modal-btn modal-btn-upload';
+                    modal.classList.add('active');
+                    drawModalBorder(modal);
+                });
+            }
+
+            document.getElementById('confirmCancel').addEventListener('click', () => close(false));
+            document.getElementById('confirmOk').addEventListener('click', () => close(true));
+            modal.addEventListener('click', (e) => {
+                if (e.target === modal) close(false);
+            });
+
+            return { showConfirm };
+        })();
+
+        // ========== ACTIVITY CARDS (drafts + uploads, sorted by last edit) ==========
+        function EDITOR_EXT_FROM_NAME(name) {
+            const i = String(name || '').lastIndexOf('.');
+            return i > 0 ? name.slice(i + 1).toLowerCase() : 'txt';
+        }
+
+        // ========== FILE EDITOR ==========
+        const FileEditor = (function () {
+            const { EDITOR } = UPLOAD_CONFIG;
+            const modal = document.getElementById('editorModal');
+            const filenameInput = document.getElementById('editorFilename');
+            const contentInput = document.getElementById('editorContent');
+            const formatChips = document.getElementById('editorFormatChips');
+
+            let activeDraftId = null;
+            let sessionDirty = false;
+            let draftSaveTimer = null;
+
+            const MIME_BY_EXT = {
+                txt: 'text/plain',
+                md: 'text/markdown',
+                json: 'application/json',
+                html: 'text/html',
+                js: 'text/javascript',
+                css: 'text/css',
+            };
+
+            function newDraftId() {
+                return crypto.randomUUID();
+            }
+
+            function defaultFilename(ext) {
+                return randomPrefixedFilename(`note.${ext}`);
+            }
+
+            function loadDrafts() {
+                try {
+                    const raw = localStorage.getItem(EDITOR.DRAFTS_KEY);
+                    if (raw) {
+                        const parsed = JSON.parse(raw);
+                        if (Array.isArray(parsed)) return parsed;
+                    }
+                } catch (_) { /* ignore */ }
+                try {
+                    const legacy = localStorage.getItem(EDITOR.LEGACY_DRAFT_KEY);
+                    if (!legacy) return [];
+                    const d = JSON.parse(legacy);
+                    localStorage.removeItem(EDITOR.LEGACY_DRAFT_KEY);
+                    if (!d?.content?.trim()) return [];
+                    const migrated = [{
+                        id: newDraftId(),
+                        filename: d.filename || defaultFilename(d.ext || EDITOR.DEFAULT_EXTENSION),
+                        content: d.content || '',
+                        ext: d.ext || EDITOR.DEFAULT_EXTENSION,
+                        updatedAt: d.updatedAt || Date.now(),
+                    }];
+                    localStorage.setItem(EDITOR.DRAFTS_KEY, JSON.stringify(migrated));
+                    return migrated;
+                } catch (_) {
+                    return [];
+                }
+            }
+
+            function saveDraftsList(drafts) {
+                const meaningful = drafts.filter((d) => d.content?.trim());
+                meaningful.sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0));
+                localStorage.setItem(
+                    EDITOR.DRAFTS_KEY,
+                    JSON.stringify(meaningful.slice(0, EDITOR.MAX_DRAFTS))
+                );
+            }
+
+            function removeDraft(id) {
+                if (!id) return;
+                saveDraftsList(loadDrafts().filter((d) => d.id !== id));
+                CardPins.removePin('draft', id);
+            }
+
+            function upsertDraft(draft) {
+                const drafts = loadDrafts().filter((d) => d.id !== draft.id);
+                drafts.unshift({ ...draft, updatedAt: Date.now() });
+                saveDraftsList(drafts);
+            }
+
+            function mimeForFilename(name) {
+                const ext = name.includes('.') ? name.split('.').pop().toLowerCase() : '';
+                return MIME_BY_EXT[ext] || 'text/plain';
+            }
+
+            function stripExtension(name) {
+                const i = name.lastIndexOf('.');
+                return i > 0 ? name.slice(0, i) : name;
+            }
+
+            function getActiveExtension() {
+                const active = formatChips.querySelector('.format-chip.active');
+                return active?.dataset.ext || EDITOR.DEFAULT_EXTENSION;
+            }
+
+            function setFormatExtension(ext) {
+                formatChips.querySelectorAll('.format-chip').forEach((chip) => {
+                    chip.classList.toggle('active', chip.dataset.ext === ext);
+                });
+                const base = stripExtension(filenameInput.value.trim()) || 'note';
+                filenameInput.value = `${base}.${ext}`;
+            }
+
+            function resetForm() {
+                activeDraftId = newDraftId();
+                filenameInput.value = defaultFilename(EDITOR.DEFAULT_EXTENSION);
+                contentInput.value = '';
+                setFormatExtension(EDITOR.DEFAULT_EXTENSION);
+                sessionDirty = false;
+            }
+
+            function applyDraftToForm(draft) {
+                activeDraftId = draft.id;
+                filenameInput.value = draft.filename;
+                contentInput.value = draft.content || '';
+                setFormatExtension(draft.ext || EDITOR_EXT_FROM_NAME(draft.filename));
+                sessionDirty = false;
+            }
+
+            function createFile(filename, content) {
+                const type = mimeForFilename(filename);
+                return new File([content], filename, { type, lastModified: Date.now() });
+            }
+
+            function saveDraftNow() {
+                if (!modal.classList.contains('active')) return;
+                const content = contentInput.value;
+                const filename = filenameInput.value.trim();
+                const ext = getActiveExtension();
+                if (!activeDraftId) activeDraftId = newDraftId();
+
+                if (!content.trim()) {
+                    if (sessionDirty) removeDraft(activeDraftId);
+                    renderDraftCards();
+                    return;
+                }
+
+                upsertDraft({
+                    id: activeDraftId,
+                    filename: filename || defaultFilename(ext),
+                    content,
+                    ext,
+                });
+                renderDraftCards();
+            }
+
+            function scheduleDraftSave() {
+                if (!modal.classList.contains('active')) return;
+                clearTimeout(draftSaveTimer);
+                draftSaveTimer = setTimeout(saveDraftNow, EDITOR.DRAFT_SAVE_MS);
+            }
+
+            function open(opts = {}) {
+                if (opts.newFile) {
+                    resetForm();
+                } else if (opts.draftId) {
+                    const draft = loadDrafts().find((d) => d.id === opts.draftId);
+                    if (draft) applyDraftToForm(draft);
+                    else resetForm();
+                } else {
+                    resetForm();
+                }
+
+                modal.classList.add('active');
+                drawModalBorder(modal);
+                contentInput.focus();
+                if (!opts.silent && opts.draftId) showToast('Restored your draft');
+            }
+
+            function close() {
+                saveDraftNow();
+                modal.classList.remove('active');
+            }
+
+            async function startFresh() {
+                if (contentInput.value.trim()) {
+                    const ok = await ConfirmDialog.showConfirm({
+                        title: 'Start fresh?',
+                        message: 'The current draft will be discarded.',
+                        fileName: filenameInput.value.trim(),
+                        danger: true,
+                    });
+                    if (!ok) return;
+                }
+                if (activeDraftId && sessionDirty) removeDraft(activeDraftId);
+                resetForm();
+                renderDraftCards();
+            }
+
+            function continueToUpload() {
+                const content = contentInput.value;
+                if (!content.trim()) {
+                    showToast('Add some content before continuing');
+                    contentInput.focus();
+                    return;
+                }
+                let filename = filenameInput.value.trim();
+                if (!filename) {
+                    showToast('Enter a file name');
+                    filenameInput.focus();
+                    return;
+                }
+                if (!filename.includes('.')) {
+                    filename = `${filename}.${getActiveExtension()}`;
+                }
+                const file = createFile(filename, content);
+                const finishedId = activeDraftId;
+                modal.classList.remove('active');
+                if (finishedId) removeDraft(finishedId);
+                activeDraftId = null;
+                sessionDirty = false;
+                renderDraftCards();
+                showSettingsModal(file);
+            }
+
+            function init() {
+                document.getElementById('editorCard').addEventListener('click', () => open({ newFile: true }));
+                document.getElementById('editorCancel').addEventListener('click', close);
+                document.getElementById('editorContinue').addEventListener('click', continueToUpload);
+                modal.addEventListener('click', (e) => {
+                    if (e.target === modal) close();
+                });
+                formatChips.querySelectorAll('.format-chip').forEach((chip) => {
+                    chip.addEventListener('click', () => setFormatExtension(chip.dataset.ext));
+                });
+                contentInput.addEventListener('input', () => {
+                    sessionDirty = true;
+                    scheduleDraftSave();
+                });
+                filenameInput.addEventListener('input', () => {
+                    sessionDirty = true;
+                    scheduleDraftSave();
+                });
+                window.addEventListener('beforeunload', () => {
+                    if (modal.classList.contains('active')) saveDraftNow();
+                });
+            }
+
+            return {
+                open,
+                close,
+                continueToUpload,
+                startFresh,
+                init,
+                loadDrafts,
+                removeDraft,
+                isOpen: () => modal.classList.contains('active'),
+            };
+        })();
+
+        function createDraftCardElement(draft) {
+            const ext = draft.ext || EDITOR_EXT_FROM_NAME(draft.filename);
+            const preview = escapeHtml((draft.content || '').slice(0, 120));
+            const age = fmtDraftAge(draft.updatedAt || Date.now());
+            const wrapper = document.createElement('div');
+            wrapper.className = 'card-wrapper draft-card card-restored activity-card';
+            wrapper.dataset.draftId = draft.id;
+            wrapper.dataset.sortTime = String(draft.updatedAt || Date.now());
+            wrapper.dataset.colorIndex = String(colorIndexForFilename(draft.filename));
+
+            wrapper.innerHTML = `
+                <button type="button" class="card-remove-btn" title="Remove draft" aria-label="Remove draft">×</button>
+                <svg class="card-shadow-svg"></svg>
+                <div class="card-body">
+                    <svg class="card-border-svg" data-style="solid"></svg>
+                    <span class="ttl-badge ttl-draft">Draft · ${age}</span>
+                    <div class="file-preview">
+                        <div class="text-preview" style="width: 80px; height: 80px; font-size: 0.35rem; font-family: monospace; overflow: hidden; background: #f9f9f9; padding: 6px; border: 1px solid #ddd; text-align: left; white-space: pre-wrap; color: #333; line-height: 1.2;">${preview}</div>
+                        <span class="file-type-label">${escapeHtml(ext)}</span>
+                        <span class="file-name-label" title="${escapeHtml(draft.filename)}">${escapeHtml(draft.filename)}</span>
+                        <span class="file-size-label">Not uploaded</span>
+                    </div>
+                    <button type="button" class="copy-button">
+                        <svg class="btn-bg-svg"></svg>
+                        <span class="btn-label">Continue editing</span>
+                    </button>
+                </div>
+            `;
+
+            wrapper.querySelector('.card-remove-btn').addEventListener('click', async (e) => {
+                e.stopPropagation();
+                const ok = await ConfirmDialog.showConfirm({
+                    title: 'Remove draft?',
+                    message: 'This draft will be deleted from this browser.',
+                    fileName: draft.filename,
+                });
+                if (!ok) return;
+                FileEditor.removeDraft(draft.id);
+                renderActivityCards();
+            });
+
+            wrapper.addEventListener('click', (e) => {
+                if (e.target.closest('.card-remove-btn, .card-pin-btn')) return;
+                FileEditor.open({ draftId: draft.id, silent: true });
+            });
+
+            attachCardPinButton(wrapper, 'draft', draft.id);
+
+            return wrapper;
+        }
+
+        function createUploadHistoryCardElement(item) {
+            const ext = item.name.split('.').pop().toLowerCase();
+            const iconType = getIconType(ext);
+            const cidx = colorIndexForFilename(item.name);
+
+            const wrapper = document.createElement('div');
+            wrapper.className = 'card-wrapper card-restored activity-card';
+            wrapper.dataset.colorIndex = cidx;
+            wrapper.dataset.sortTime = String(item.uploadedAt || 0);
+
+            const isExpired = item.expiresAt && item.expiresAt < Date.now();
+            const { text: ttlText, cls: ttlCls } = fmtTtl(item.expiresAt || 0);
+
+            const isImage = ['jpg', 'jpeg', 'png', 'gif', 'svg', 'webp'].includes(ext);
+            const isText = ['txt', 'html', 'css', 'js', 'json', 'md'].includes(ext);
+            let previewHtml = '';
+
+            if (isImage) {
+                previewHtml = `<img src="${item.url}" style="width: 80px; height: 80px; object-fit: contain; margin-bottom: 4px;" />`;
+            } else if (isText) {
+                previewHtml = `<div class="text-preview" style="width: 80px; height: 80px; font-size: 0.35rem; font-family: monospace; overflow: hidden; background: #f9f9f9; padding: 6px; border: 1px solid #ddd; text-align: left; white-space: pre-wrap; color: #333; line-height: 1.2;">…</div>`;
+            } else {
+                previewHtml = `<svg class="rough-icon" data-icon="${iconType}"></svg>`;
+            }
+
+            wrapper.innerHTML = `
+                <svg class="card-shadow-svg"></svg>
+                <div class="card-body"${isExpired ? ' style="opacity:0.5;"' : ''}>
+                    <svg class="card-border-svg" data-style="solid"></svg>
+                    <span class="ttl-badge ${ttlCls}" data-expires="${item.expiresAt || 0}">${ttlText}</span>
+                    <div class="file-preview">
+                        ${previewHtml}
+                        <span class="file-type-label">${ext}</span>
+                        <span class="file-name-label" title="${escapeHtml(item.name)}">${escapeHtml(item.name)}</span>
+                    </div>
+                    <button class="copy-button" onclick="event.stopPropagation(); copyToClipboard('${item.url}', this)"${isExpired ? ' disabled style="opacity:0.5;"' : ''}>
+                        <svg class="btn-bg-svg"></svg>
+                        <span class="btn-label">${isExpired ? 'Expired' : 'Copy Link'}</span>
+                    </button>
+                </div>
+            `;
+
+            if (!isExpired) {
+                wrapper.dataset.url = item.url;
+                wrapper.addEventListener('click', (e) => {
+                    if (e.target.closest('.copy-button, .card-pin-btn')) return;
+                    window.open(item.url, '_blank');
+                });
+                attachCardPinButton(wrapper, 'upload', item.url);
+            } else {
+                CardPins.removePin('upload', item.url);
+            }
+
+            if (isText) loadTextPreviewWhenVisible(wrapper, item.url);
+
+            return wrapper;
+        }
+
+        function reorderActivityCards() {
+            const grid = document.getElementById('cardGrid');
+            const adCard = grid.querySelector('.ad-card');
+            if (!adCard) return;
+            const cards = Array.from(grid.querySelectorAll('.activity-card'));
+            cards.sort((a, b) => {
+                const pinA = a.classList.contains('is-pinned');
+                const pinB = b.classList.contains('is-pinned');
+                if (pinA && !pinB) return -1;
+                if (!pinA && pinB) return 1;
+                if (pinA && pinB) {
+                    return Number(b.dataset.pinnedAt || 0) - Number(a.dataset.pinnedAt || 0);
+                }
+                return Number(b.dataset.sortTime || 0) - Number(a.dataset.sortTime || 0);
+            });
+            let anchor = adCard;
+            cards.forEach((card) => {
+                anchor.insertAdjacentElement('afterend', card);
+                anchor = card;
+            });
+        }
+
+        function renderActivityCards() {
+            CardPins.pruneExpiredUploadPins();
+
+            const grid = document.getElementById('cardGrid');
+            const adCard = grid.querySelector('.ad-card');
+            const inFlight = Array.from(grid.querySelectorAll('.activity-card.is-uploading'));
+
+            grid.querySelectorAll('.activity-card:not(.is-uploading)').forEach((el) => el.remove());
+
+            const entries = [];
+
+            FileEditor.loadDrafts()
+                .filter((d) => d.content?.trim())
+                .forEach((d) => {
+                    entries.push({ kind: 'draft', sortTime: d.updatedAt || 0, data: d });
+                });
+
+            JSON.parse(localStorage.getItem(HISTORY_KEY) || '[]').forEach((u) => {
+                entries.push({
+                    kind: 'upload',
+                    sortTime: u.uploadedAt || 0,
+                    data: u,
+                });
+            });
+
+            inFlight.forEach((card) => {
+                entries.push({
+                    kind: 'uploading',
+                    sortTime: Number(card.dataset.sortTime || Date.now()),
+                    el: card,
+                });
+            });
+
+            entries.sort((a, b) => CardPins.compareEntries(a, b));
+
+            const fragment = document.createDocumentFragment();
+            entries.forEach((entry) => {
+                if (entry.kind === 'uploading') {
+                    fragment.appendChild(entry.el);
+                } else if (entry.kind === 'draft') {
+                    fragment.appendChild(createDraftCardElement(entry.data));
+                } else {
+                    fragment.appendChild(createUploadHistoryCardElement(entry.data));
+                }
+            });
+
+            if (adCard) adCard.after(fragment);
+            else grid.appendChild(fragment);
+
+            scheduleDrawAll();
+            updateEmptyState();
+        }
+
+        function renderDraftCards() {
+            renderActivityCards();
+        }
+
+        FileEditor.init();
+        renderActivityCards();
+
+        // ========== COMMAND PALETTE ==========
+        const CommandPalette = (function () {
+            const IS_MAC = /Mac|iPhone|iPod|iPad/i.test(navigator.platform);
+            const overlay = document.getElementById('commandPalette');
+            const input = document.getElementById('commandPaletteInput');
+            const listEl = document.getElementById('commandPaletteList');
+            const fileInput = document.getElementById('fileInput');
+
+            let filteredActions = [];
+            let selectedIndex = 0;
+
+            function getActions() {
+                const actions = [
+                    {
+                        id: 'upload',
+                        label: 'Upload file',
+                        keywords: 'add pick choose open browse',
+                        run: () => fileInput.click(),
+                    },
+                    {
+                        id: 'editor',
+                        label: 'Create file in editor',
+                        keywords: 'new write text note code',
+                        run: () => FileEditor.open({ newFile: true }),
+                    },
+                ];
+
+                if (FileEditor.isOpen()) {
+                    actions.unshift({
+                        id: 'editor-continue',
+                        label: 'Continue to upload settings',
+                        keywords: 'save next submit',
+                        run: () => FileEditor.continueToUpload(),
+                    });
+                    actions.push({
+                        id: 'editor-fresh',
+                        label: 'Start fresh (discard current draft)',
+                        keywords: 'new clear reset discard',
+                        run: () => FileEditor.startFresh(),
+                    });
+                }
+
+                const settingsModal = document.getElementById('settingsModal');
+                if (settingsModal.classList.contains('active') && pendingFile) {
+                    actions.unshift({
+                        id: 'upload-confirm',
+                        label: 'Confirm upload',
+                        keywords: 'save submit send',
+                        run: () => document.getElementById('modalUpload').click(),
+                    });
+                }
+
+                if (FileEditor.isOpen()) {
+                    actions.push({
+                        id: 'editor-close',
+                        label: 'Close editor',
+                        keywords: 'cancel dismiss exit',
+                        run: () => FileEditor.close(),
+                    });
+                }
+
+                if (settingsModal.classList.contains('active')) {
+                    actions.push({
+                        id: 'upload-close',
+                        label: 'Close upload settings',
+                        keywords: 'cancel dismiss exit',
+                        run: () => closeSettingsModal(),
+                    });
+                }
+
+                return actions;
+            }
+
+            function matchesQuery(action, query) {
+                if (!query) return true;
+                const haystack = `${action.label} ${action.keywords || ''}`.toLowerCase();
+                return query.split(/\s+/).every((term) => haystack.includes(term));
+            }
+
+            function filterActions(query) {
+                return getActions().filter((action) => matchesQuery(action, query));
+            }
+
+            function render(query) {
+                filteredActions = filterActions(query.trim().toLowerCase());
+                if (selectedIndex >= filteredActions.length) {
+                    selectedIndex = Math.max(0, filteredActions.length - 1);
+                }
+
+                if (!filteredActions.length) {
+                    listEl.innerHTML = '<li class="command-palette-empty">No matching actions</li>';
+                    return;
+                }
+
+                listEl.innerHTML = filteredActions.map((action, i) => `
+                    <li
+                        class="command-palette-item${i === selectedIndex ? ' is-selected' : ''}"
+                        role="option"
+                        aria-selected="${i === selectedIndex}"
+                        data-index="${i}"
+                    >
+                        <span class="command-palette-label">${action.label}</span>
+                    </li>
+                `).join('');
+            }
+
+            function open() {
+                overlay.classList.add('active');
+                selectedIndex = 0;
+                input.value = '';
+                render('');
+                input.focus();
+            }
+
+            function close() {
+                overlay.classList.remove('active');
+                input.value = '';
+            }
+
+            function isOpen() {
+                return overlay.classList.contains('active');
+            }
+
+            function runSelected() {
+                const action = filteredActions[selectedIndex];
+                if (!action) return;
+                close();
+                action.run();
+            }
+
+            function moveSelection(delta) {
+                if (!filteredActions.length) return;
+                selectedIndex = (selectedIndex + delta + filteredActions.length) % filteredActions.length;
+                render(input.value.trim().toLowerCase());
+                const selected = listEl.querySelector('.is-selected');
+                selected?.scrollIntoView({ block: 'nearest' });
+            }
+
+            function isOpenChord(e) {
+                const slash = e.key === '/' || e.code === 'Slash';
+                return slash && (e.ctrlKey || e.metaKey) && !e.altKey;
+            }
+
+            function handleGlobalKeydown(e) {
+                if (isOpen()) {
+                    if (e.key === 'Escape') {
+                        e.preventDefault();
+                        close();
+                        return;
+                    }
+                    if (e.key === 'ArrowDown') {
+                        e.preventDefault();
+                        moveSelection(1);
+                        return;
+                    }
+                    if (e.key === 'ArrowUp') {
+                        e.preventDefault();
+                        moveSelection(-1);
+                        return;
+                    }
+                    if (e.key === 'Enter') {
+                        e.preventDefault();
+                        runSelected();
+                    }
+                    return;
+                }
+
+                if (isOpenChord(e)) {
+                    e.preventDefault();
+                    open();
+                    return;
+                }
+
+                if (FileEditor.isOpen()) {
+                    if (e.key === 'Escape') FileEditor.close();
+                    if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
+                        e.preventDefault();
+                        FileEditor.continueToUpload();
+                    }
+                    return;
+                }
+
+                const settingsModal = document.getElementById('settingsModal');
+                if (!settingsModal.classList.contains('active')) return;
+                if (e.key === 'Escape') closeSettingsModal();
+                if (e.key === 'Enter' && pendingFile && !isTypingField(e.target)) {
+                    e.preventDefault();
+                    document.getElementById('modalUpload').click();
+                }
+            }
+
+            function isTypingField(el) {
+                if (!el) return false;
+                const tag = el.tagName;
+                return tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || el.isContentEditable;
+            }
+
+            function init() {
+                const openHint = IS_MAC ? '⌘/' : 'Ctrl+/';
+                document.getElementById('commandPaletteOpenHint').textContent = `${openHint} open`;
+                const subtitle = document.getElementById('siteSubtitle');
+                if (subtitle) {
+                    subtitle.textContent += ` · ${openHint} for actions`;
+                }
+
+                input.addEventListener('input', () => {
+                    selectedIndex = 0;
+                    render(input.value.trim().toLowerCase());
+                });
+                listEl.addEventListener('click', (e) => {
+                    const item = e.target.closest('.command-palette-item');
+                    if (!item) return;
+                    selectedIndex = parseInt(item.dataset.index, 10);
+                    runSelected();
+                });
+                overlay.addEventListener('click', (e) => {
+                    if (e.target === overlay) close();
+                });
+                document.addEventListener('keydown', handleGlobalKeydown);
+            }
+
+            return { init, open, close, isOpen };
+        })();
+
+        CommandPalette.init();
+
+        // Upload button
+        document.getElementById('modalUpload').addEventListener('click', () => {
+            if (!pendingFile) return;
+            const settings = getModalSettings();
+            const file = pendingFile;
+            closeSettingsModal();
+            uploadFile(file, settings);
+        });
+
+        // ========== FILE TYPE DETECTION ==========
+        function getIconType(ext) {
+            if (['jpg','jpeg','png','gif','svg','webp','bmp'].includes(ext)) return 'img';
+            if (['mp4','webm','ogg','mov','avi','mkv'].includes(ext)) return 'video';
+            if (['doc','docx'].includes(ext)) return 'word';
+            return 'text';
+        }
+
+        // ========== FORMAT FILE SIZE ==========
+        function fmtSize(b) {
+            if (b < 1024) return b + ' B';
+            if (b < 1048576) return (b / 1024).toFixed(1) + ' KB';
+            return (b / 1048576).toFixed(1) + ' MB';
+        }
+
+        // ========== DRAG-AND-DROP UPLOAD ==========
+        const DragDropUpload = (function () {
+            const { DROP } = UPLOAD_CONFIG;
+
+            function randomPrefixedFilename(name) {
+                const code = crypto.randomUUID().replace(/-/g, '').slice(0, DROP.RANDOM_PREFIX_LENGTH);
+                return `${code}_${name}`;
+            }
+
+            function buildUploadSettings(file) {
+                return {
+                    filename: randomPrefixedFilename(file.name),
+                    cacheDuration: DROP.TTL_SECONDS,
+                    disposition: DROP.DISPOSITION,
+                };
+            }
+
+            function readAllDirectoryEntries(reader) {
+                return new Promise((resolve, reject) => {
+                    const entries = [];
+                    const readNextBatch = () => {
+                        reader.readEntries((batch) => {
+                            if (!batch.length) {
+                                Promise.all(entries.map(entryToFiles))
+                                    .then((groups) => resolve(groups.flat()))
+                                    .catch(reject);
+                                return;
+                            }
+                            entries.push(...batch);
+                            readNextBatch();
+                        }, reject);
+                    };
+                    readNextBatch();
+                });
+            }
+
+            function entryToFiles(entry) {
+                if (entry.isFile) {
+                    return new Promise((resolve, reject) => {
+                        entry.file((file) => resolve([file]), reject);
+                    });
+                }
+                if (entry.isDirectory) {
+                    return readAllDirectoryEntries(entry.createReader());
+                }
+                return Promise.resolve([]);
+            }
+
+            function itemToFiles(item) {
+                if (item.kind !== 'file') return Promise.resolve([]);
+                const entry = item.webkitGetAsEntry?.() ?? item.getAsEntry?.();
+                if (entry) return entryToFiles(entry);
+                const file = item.getAsFile();
+                return Promise.resolve(file ? [file] : []);
+            }
+
+            function collectFromDataTransfer(dataTransfer) {
+                const { items, files } = dataTransfer;
+                if (items?.length) {
+                    const tasks = Array.from(items, itemToFiles);
+                    if (tasks.length) {
+                        return Promise.all(tasks).then((groups) => groups.flat());
+                    }
+                }
+                return Promise.resolve([...files]);
+            }
+
+            function isValidFile(file) {
+                return Boolean(file?.name && (file.size > 0 || file.type));
+            }
+
+            function limitFileBatch(files) {
+                if (files.length <= DROP.MAX_FILES) return files;
+                showToast(
+                    `Only ${DROP.MAX_FILES} files at a time — uploading the first ${DROP.MAX_FILES}`
+                );
+                return files.slice(0, DROP.MAX_FILES);
+            }
+
+            async function handleDrop(dataTransfer) {
+                const collected = await collectFromDataTransfer(dataTransfer);
+                const files = limitFileBatch(collected.filter(isValidFile));
+                files.forEach((file) => uploadFile(file, buildUploadSettings(file)));
+            }
+
+            return { handleDrop };
+        })();
+
+        // ========== UPLOAD FILE ==========
+        async function uploadFile(file, settings = {}) {
+            const cacheDuration = settings.cacheDuration ?? UPLOAD_CONFIG.DEFAULT_TTL_SECONDS;
+            const disposition = settings.disposition ?? 'inline';
+            const filename = settings.filename || file.name;
+            const fileSize = fmtSize(file.size);
+
+            const grid = document.getElementById('cardGrid');
+            const ext = filename.split('.').pop().toLowerCase();
+            const iconType = getIconType(ext);
+            const cidx = colorIndexForFilename(filename);
+
+            // Create the card immediately in a "loading" state
+            const wrapper = document.createElement('div');
+            wrapper.className = 'card-wrapper activity-card is-uploading';
+            wrapper.dataset.colorIndex = cidx;
+            wrapper.dataset.sortTime = String(Date.now());
+
+            const isImage = ['jpg','jpeg','png','gif','svg','webp'].includes(ext);
+            const isText = ['txt','html','css','js','json','md'].includes(ext);
+            let previewHtml = '';
+            
+            if (isImage) {
+                previewHtml = `<img src="${URL.createObjectURL(file)}" style="width: 80px; height: 80px; object-fit: contain; margin-bottom: 4px;" />`;
+            } else if (isText) {
+                previewHtml = `<div class="text-preview" style="width: 80px; height: 80px; font-size: 0.35rem; font-family: monospace; overflow: hidden; background: #f9f9f9; padding: 6px; border: 1px solid #ddd; text-align: left; white-space: pre-wrap; color: #333; line-height: 1.2;">Loading...</div>`;
+                file.text().then(text => {
+                    setTimeout(() => {
+                        const div = wrapper.querySelector('.text-preview');
+                        if (div) div.textContent = text.slice(0, 150);
+                    }, 0);
+                });
+            } else {
+                previewHtml = `<svg class="rough-icon" data-icon="${iconType}"></svg>`;
+            }
+
+            wrapper.innerHTML = `
+                <svg class="card-shadow-svg"></svg>
+                <div class="card-body">
+                    <svg class="card-border-svg" data-style="solid"></svg>
+                    <div class="file-preview">
+                        ${previewHtml}
+                        <span class="file-type-label">${ext}</span>
+                        <span class="file-name-label" title="${filename}">${filename}</span>
+                        <span class="file-size-label">${fileSize}</span>
+                        <div class="progress-container">
+                            <svg class="progress-svg"></svg>
+                        </div>
+                        <span class="progress-label">0%</span>
+                    </div>
+                    <button class="copy-button" disabled style="opacity:0.5;">
+                        <svg class="btn-bg-svg"></svg>
+                        <span class="btn-label">Uploading…</span>
+                    </button>
+                </div>
+            `;
+
+            const adCard = grid.querySelector('.ad-card');
+            if (adCard) adCard.insertAdjacentElement('afterend', wrapper);
+            else grid.appendChild(wrapper);
+            reorderActivityCards();
+
+            scheduleDrawAll();
+
+            // Remove empty state if present
+            const emptyState = grid.querySelector('.empty-state');
+            if (emptyState) emptyState.remove();
+
+            // Draw initial empty progress bar
+            const color = COLORS[cidx % COLORS.length];
+            const progressSvg = wrapper.querySelector('.progress-svg');
+            const progressLabel = wrapper.querySelector('.progress-label');
+            drawProgress(progressSvg, 0, color);
+
+            try {
+                // 1. Get presigned upload URL
+                const params = new URLSearchParams({
+                    filename,
+                    cacheDuration: cacheDuration.toString(),
+                    contentLength: file.size.toString(),
+                    secretToken,
+                });
+                if (file.type) params.append('contentType', file.type);
+                if (disposition) params.append('contentDisposition', disposition);
+
+                // Update progress: preparing
+                progressLabel.textContent = 'Preparing…';
+                drawProgress(progressSvg, 0.05, color);
+
+                const apiRes = await fetch(`${API_URL}/temp-file-url?${params}`);
+                const data = await apiRes.json();
+                if (!apiRes.ok) throw new Error(data.error || 'Could not prepare upload');
+
+                // 2. PUT file to S3 using XHR for progress
+                drawProgress(progressSvg, 0.1, color);
+                progressLabel.textContent = '10%';
+
+                await new Promise((resolve, reject) => {
+                    const xhr = new XMLHttpRequest();
+                    xhr.open('PUT', data.uploadUrl);
+
+                    // Set required headers
+                    if (data.requiredHeaders) {
+                        Object.entries(data.requiredHeaders).forEach(([k, v]) => {
+                            xhr.setRequestHeader(k, v);
+                        });
+                    }
+
+                    xhr.upload.addEventListener('progress', (e) => {
+                        if (e.lengthComputable) {
+                            // Map 0-100% upload to 10-90% of progress bar
+                            const uploadPct = e.loaded / e.total;
+                            const displayPct = 0.1 + uploadPct * 0.8;
+                            drawProgress(progressSvg, displayPct, color);
+                            progressLabel.textContent = Math.round(displayPct * 100) + '%';
+                        }
+                    });
+
+                    xhr.onload = () => {
+                        if (xhr.status >= 200 && xhr.status < 300) {
+                            resolve();
+                        } else {
+                            reject(new Error('Upload to storage failed'));
+                        }
+                    };
+                    xhr.onerror = () => reject(new Error('Network error during upload'));
+                    xhr.send(file);
+                });
+
+                // 3. Notify backend that upload is complete (triggers cache purge, etc)
+                if (data.publicUrl) {
+                    await fetch(`${API_URL}/upload-complete`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ publicUrl: data.publicUrl, secretToken }),
+                    });
+                }
+
+                // 4. Determine final URL
+                const finalUrl = data.publicUrl || (new URL(data.uploadUrl).origin + new URL(data.uploadUrl).pathname);
+
+                // 5. Save to localStorage history
+                let uploads = JSON.parse(localStorage.getItem(HISTORY_KEY) || '[]');
+                
+                // Remove existing entry with the same URL to prefer the latest
+                uploads = uploads.filter(u => u.url !== finalUrl);
+                
+                const uploadedAt = Date.now();
+                uploads.unshift({
+                    name: filename,
+                    url: finalUrl,
+                    uploadedAt,
+                    expiresAt: uploadedAt + cacheDuration * 1000,
+                });
+                localStorage.setItem(HISTORY_KEY, JSON.stringify(uploads.slice(0, 50)));
+
+                // Remove existing cards in the DOM with the same URL to prevent visual duplicates
+                const existingCards = Array.from(grid.querySelectorAll('.activity-card')).filter(
+                    (c) => c !== wrapper && c.dataset.url === finalUrl
+                );
+                existingCards.forEach((c) => c.remove());
+
+                wrapper.classList.remove('is-uploading');
+                wrapper.dataset.sortTime = String(uploadedAt);
+                reorderActivityCards();
+
+                // 6. Update card to "success" state
+                drawProgress(progressSvg, 1, color);
+                progressLabel.textContent = 'Done!';
+
+                // Store URL on wrapper for click-to-open
+                wrapper.dataset.url = finalUrl;
+                wrapper.addEventListener('click', (e) => {
+                    if (e.target.closest('.copy-button, .card-pin-btn')) return;
+                    window.open(finalUrl, '_blank');
+                });
+                if (!wrapper.querySelector('.card-pin-btn')) {
+                    attachCardPinButton(wrapper, 'upload', finalUrl);
+                }
+
+                showToast('✓ File uploaded successfully!');
+
+                // Clean up progress elements after a brief moment
+                const expiresAt = Date.now() + cacheDuration * 1000;
+                setTimeout(() => {
+                    const progressContainer = wrapper.querySelector('.progress-container');
+                    if (progressContainer) progressContainer.remove();
+                    if (progressLabel) progressLabel.remove();
+
+                    // Add TTL badge
+                    const { text, cls } = fmtTtl(expiresAt);
+                    const badge = document.createElement('span');
+                    badge.className = 'ttl-badge ' + cls;
+                    badge.dataset.expires = expiresAt;
+                    badge.textContent = text;
+                    wrapper.querySelector('.card-body').appendChild(badge);
+                }, 600);
+
+                const btn = wrapper.querySelector('.copy-button');
+                btn.disabled = false;
+                btn.style.opacity = '1';
+                btn.setAttribute('onclick', `event.stopPropagation(); copyToClipboard('${finalUrl}', this)`);
+                btn.querySelector('.btn-label').textContent = 'Copy Link';
+
+            } catch (err) {
+                // Show error state on the card
+                const progressContainer = wrapper.querySelector('.progress-container');
+                if (progressContainer) progressContainer.remove();
+                if (progressLabel) progressLabel.textContent = '✕ ' + err.message;
+                if (progressLabel) progressLabel.style.color = '#e74c3c';
+
+                const btn = wrapper.querySelector('.copy-button');
+                btn.querySelector('.btn-label').textContent = 'Failed';
+                console.error('Upload error:', err);
+            }
+        }
+
+        function loadTextPreviewWhenVisible(wrapper, url) {
+            const preview = wrapper.querySelector('.text-preview');
+            if (!preview) return;
+            const run = () => {
+                fetch(url)
+                    .then((r) => r.text())
+                    .then((text) => { preview.textContent = text.slice(0, 150); })
+                    .catch(() => { preview.textContent = 'Error loading'; });
+            };
+            if (!('IntersectionObserver' in window)) {
+                run();
+                return;
+            }
+            const io = new IntersectionObserver(
+                (entries) => {
+                    if (!entries[0]?.isIntersecting) return;
+                    io.disconnect();
+                    run();
+                },
+                { rootMargin: '120px' }
+            );
+            io.observe(wrapper);
+        }
+
+        // Show empty state if no history
+        function updateEmptyState() {
+            const grid = document.getElementById('cardGrid');
+            const existing = grid.querySelector('.empty-state');
+            const hasDrafts = grid.querySelectorAll('.draft-card').length > 0;
+            const fileCards = grid.querySelectorAll('.card-wrapper:not(.upload-card):not(.ad-card):not(.draft-card)');
+            if (hasDrafts && existing) {
+                existing.remove();
+                return;
+            }
+            if (fileCards.length === 0 && !hasDrafts && !existing) {
+                const empty = document.createElement('div');
+                empty.className = 'empty-state';
+                empty.innerHTML = `
+                    <svg class="rough-plus"></svg>
+                    <div class="empty-state-text">No files yet — upload your first one!</div>
+                `;
+                const adCard = grid.querySelector('.ad-card');
+                if (adCard) adCard.insertAdjacentElement('afterend', empty);
+                else grid.appendChild(empty);
+                requestAnimationFrame(drawPlusSigns);
+            } else if (fileCards.length > 0 && existing) {
+                existing.remove();
+            }
+        }
+        updateEmptyState();
+
+        // ========== DRAG OVERLAY UI ==========
+        const DragOverlay = (function () {
+            let nestedDragCount = 0;
+            const row = document.getElementById('uploadRow');
+
+            function hasFileDrag(dataTransfer) {
+                return dataTransfer && Array.from(dataTransfer.types).includes('Files');
+            }
+
+            function setHighlight(on) {
+                row.classList.toggle('drag-highlight', on);
+            }
+
+            function setActive(active) {
+                row.classList.toggle('active', active);
+                document.body.classList.toggle('file-drag-active', active);
+                if (!active) setHighlight(false);
+            }
+
+            function hide() {
+                nestedDragCount = 0;
+                setActive(false);
+            }
+
+            function init() {
+                window.addEventListener('dragenter', (e) => {
+                    if (!hasFileDrag(e.dataTransfer)) return;
+                    e.preventDefault();
+                    nestedDragCount++;
+                    if (nestedDragCount === 1) setActive(true);
+                });
+
+                window.addEventListener('dragover', (e) => {
+                    if (!hasFileDrag(e.dataTransfer)) return;
+                    e.preventDefault();
+                    e.dataTransfer.dropEffect = 'copy';
+                    if (row.classList.contains('active')) setHighlight(true);
+                });
+
+                window.addEventListener('dragleave', (e) => {
+                    if (!hasFileDrag(e.dataTransfer)) return;
+                    e.preventDefault();
+                    nestedDragCount--;
+                    if (nestedDragCount <= 0) {
+                        nestedDragCount = 0;
+                        setActive(false);
+                    }
+                });
+
+                window.addEventListener('drop', (e) => {
+                    if (!hasFileDrag(e.dataTransfer)) return;
+                    e.preventDefault();
+                    hide();
+                    DragDropUpload.handleDrop(e.dataTransfer);
+                });
+
+            }
+
+            return { hide, init };
+        })();
+
+        DragOverlay.init();
+
+        // ========== FILE INPUT ==========
+        document.getElementById('fileInput').addEventListener('change', function() {
+            const file = this.files[0];
+            if (!file) return;
+            DragOverlay.hide();
+            this.value = '';
+            showSettingsModal(file);
+        });
+
+        // ========== ROTATE AD MESSAGE ==========
+        const adMessages = [
+            "Click this before we go bankrupt hosting your temporary files. 💸",
+            "Servers don't run on good vibes. Help pay the bills! 📉",
+            "Turns out the 'cloud' actually costs real money. Help a dev out. ☁️",
+            "Click this or the server hamsters will starve. 🐹",
+            "Free for you, but my credit card is crying. 💳",
+            "If you don't click, I might have to get a real job. 💼",
+            "Help me fund my coffee addiction. ☕",
+            "Server bills are due and I'm scared. Click please. 😨",
+            "Clicking this burns calories. Probably. 🏃‍♂️",
+            "Your files are ephemeral, but my debt is forever. 💸",
+            "I'm literally paying you to use this. Wait, no. Click this. 🛑",
+            "Help! Jeff Bezos is asking for his AWS money. 📦",
+            "Click here to send a penny to a struggling dev. 🪙",
+            "My wallet hates you right now. Make it better. 😡",
+            "A click a day keeps the 404 away. 🏥",
+            "Your data is free, my therapy for hosting it is not. 🧠",
+            "Every time you don't click, a developer cries. 😢",
+            "Hosting files ain't cheap. Do your part. 🫵",
+            "Click this if you have a soul. 👻",
+            "Spare some change for a poor server admin? 🧢",
+            "Do it for the bandwidth. 🌐",
+            "You like free stuff? Me too. Click this. 🎁",
+            "I sold my soul for this server space. Click to help me buy it back. 👿",
+            "Clicking here is scientifically proven to make you a better person. 🔬",
+            "I run on caffeine and ad clicks. Please provide one of those. ☕",
+            "Help keep the lights on in the server room. 💡",
+            "Clicking this is less painful than paying a subscription. 🔄",
+            "If this site goes down, it's because you didn't click. 📉",
+            "Don't make me add a paywall. I'll do it. 🧱",
+            "Servers need love (and money) too. ❤️",
+            "Click to support independent developers who make bad financial choices. 🤪",
+            "I accept clicks as a form of apology for your large files. 📁",
+            "It takes 1 second to click and 0 seconds to regret it. ⏱️",
+            "My landlord doesn't accept 'good karma' as rent. 🏠",
+            "Give a click, take a file. That's the deal. 🤝",
+            "Click to prevent this site from becoming a 90s Geocities page. 💾",
+            "This ad pays for the electricity used to send you this file. ⚡",
+            "Clicking is caring. Are you careless? 💔",
+            "Save a dev, click an ad. 🛟",
+            "My code is free, the hardware isn't. 💻",
+            "Click this to officially become my favorite user today. 🏆",
+            "I bet you won't click this. Prove me wrong. 🎯",
+            "A click is worth a thousand words (or like, $0.001). 🗣️",
+            "Click to help me upgrade from a potato server. 🥔",
+            "Support my dream of not being broke. 💭",
+            "Click here to absolve your guilt of using free services. 😇",
+            "If you click, I might afford name-brand ramen tonight. 🍜",
+            "Clicking this ad is your good deed for the day. 🌟",
+            "Help me keep this site ad-free... wait. 🤦‍♂️",
+            "Your click keeps the ephemeral dream alive. ✨",
+            "It's either this or I start selling your data. (Kidding... mostly). 🕵️",
+            "Click to fund my inevitable burnout recovery. 🏖️",
+            "If you like fast downloads, you'll love clicking this. 🚀",
+            "Click to pet the virtual server dog. 🐕",
+            "My accountant says I need more clicks. Make him happy. 📊",
+            "Clicking this will make your files transfer 0.00% faster! 🏎️",
+            "Help me afford the 'Pro' tier of my hosting plan. ⬆️",
+            "Click to keep the internet weird and free. 👽",
+            "This click sponsored by my dwindling bank account. 🏦",
+            "Clicking here is practically a charitable donation. 🕊️",
+            "I'm not begging, I'm just aggressively asking. Click. 🙏",
+            "Click to stop the server from crying. 😭",
+            "Clicking this is the tech equivalent of tipping your waiter. 💵",
+            "Your click is the only thing standing between me and bankruptcy. 📉",
+            "Click here to make a dev smile. (Results may vary). 😁",
+            "I'll stop asking when the server bills stop coming. 🛑",
+            "Click to support artisanal, small-batch file hosting. 🏺",
+            "Clicking this helps me buy more hard drives. 💽",
+            "Help me turn this side project into a main project. 🚀",
+            "Click to keep the file sharing magic alive. 🪄",
+            "Every click gets me one step closer to buying a yacht. (Or lunch). 🥪",
+            "Click to tell my mom I have a real business. 👩‍👦",
+            "This ad is the price of admission. Cheap, right? 🎟️",
+            "Click here to validate my existence. 🥺",
+            "I wrote thousands of lines of code for this. A click is the least you can do. ⌨️",
+            "Click to keep the server gremlins at bay. 👹",
+            "Your click helps me avoid getting a real job. 🛑",
+            "Clicking this is like high-fiving a developer. 🖐️",
+            "Help me pay for the coffee that wrote this code. ☕",
+            "Click to prove you're not a robot. 🤖",
+            "Click here to fund my future startup failures. 📉",
+            "I accept clicks, praise, and large sums of cash. 💰",
+            "Click to keep this service running smoothly. 🧈",
+            "Clicking this is good for your karma. 🕉️",
+            "Help me keep this site from joining the Google Graveyard. 🪦",
+            "Click to support my delusions of grandeur. 👑",
+            "This click helps me afford the good Wi-Fi. 📶",
+            "Clicking this ad is a victimless crime. 🕵️‍♂️",
+            "Help me keep this site free from annoying pop-ups. (By clicking this one). 🎈",
+            "Click to make the internet a slightly better place. 🌍",
+            "Your click is the wind beneath my server's wings. 🦅",
+            "Click to help me pay off my student loans. 🎓",
+            "Clicking this is the best decision you'll make today. 🤔",
+            "Help me afford the premium pizza toppings. 🍕",
+            "Click to keep the file transfers blazing fast. 🔥",
+            "This ad click is brought to you by desperation. 😬",
+            "Click to support a developer who should be sleeping right now. 😴",
+            "Help me turn caffeine into code. ☕➡️💻",
+            "Clicking this ad is practically a public service. 🏛️",
+            "Click to keep the ephemeral files ephemeral-ing. 👻"
+        ];
+        const adMessageEl = document.getElementById('ad-message');
+        if (adMessageEl) {
+            adMessageEl.textContent = adMessages[Math.floor(Math.random() * adMessages.length)];
+        }
+    </script>
+</body>
+</html>

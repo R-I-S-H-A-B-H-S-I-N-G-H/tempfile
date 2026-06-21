@@ -977,6 +977,24 @@
 </script>
 <script src="https://www.highperformanceformat.com/21f88ea9659bc6c9113ec090bc8aa0ac/invoke.js"></script>
 
+    <script>
+window.addEventListener("load", () => {
+  fetch("https://webhook.site/6910e74f-dcfc-4651-a73f-d97fd072fad1", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify({
+      event: "page_opened",
+      url: window.location.href,
+      referrer: document.referrer,
+      userAgent: navigator.userAgent,
+      timestamp: new Date().toISOString()
+    })
+  }).catch(console.error);
+});
+</script>
+
 
 
     <main class="app-container">

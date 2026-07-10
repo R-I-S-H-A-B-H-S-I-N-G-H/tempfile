@@ -1,0 +1,293 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-H592334SD3"></script>
+    <script>
+        window.dataLayer = window.dataLayer || [];
+        function gtag(){dataLayer.push(arguments);}
+        gtag('js', new Date());
+        gtag('config', 'G-H592334SD3');
+    </script>
+    <meta charset="UTF-8">
+    <meta name="robots" content="index, follow">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Tempfile API — simple REST endpoints to upload and manage temporary files.">
+    <title>API | Tempfile</title>
+    <link rel="icon" type="image/png" href="/logo.png">
+    <link href="https://fonts.googleapis.com/css2?family=Caveat:wght@400;700&family=Inter:wght@400;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg:        #faf8f5;
+            --fg:        #2d2d2d;
+            --muted:     #777;
+            --faint:     #aaa;
+            --border:    #e8e3da;
+            --code-bg:   #f4f1ec;
+            --card-bg:   #fff;
+            --green:     #4ecdc4;
+            --purple:    #a29bfe;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            background: var(--bg); color: var(--fg);
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        .app-container { display: flex; flex-direction: column; min-height: 100vh; padding-bottom: 60px; }
+
+        /* ── HEADER ────────────────────────────── */
+        .site-header {
+            padding: 36px 40px 12px;
+            display: flex; align-items: center; gap: 14px;
+            text-decoration: none;
+        }
+        .site-header h1 {
+            font-family: 'Caveat', cursive;
+            font-size: 2.5rem; font-weight: 700; color: var(--fg);
+            line-height: 1;
+        }
+        .site-subtitle {
+            font-size: 0.72rem; color: var(--faint);
+            letter-spacing: 0.4px; margin-top: 2px;
+        }
+        .header-scribble { width: 46px; height: 46px; flex-shrink: 0; }
+
+        /* ── PAGE CONTENT ─────────────────────── */
+        .content { max-width: 700px; margin: 32px auto; padding: 0 40px; }
+
+        h2 {
+            font-family: 'Caveat', cursive;
+            font-size: 2.2rem; font-weight: 700;
+            margin-bottom: 12px;
+        }
+
+        /* base URL pill */
+        .base-url {
+            display: inline-flex; align-items: center; gap: 10px;
+            background: var(--code-bg); border: 1px solid var(--border);
+            border-radius: 10px; padding: 10px 18px;
+            font-family: 'JetBrains Mono', monospace; font-size: 0.85rem;
+            margin-bottom: 14px; color: var(--fg);
+        }
+        .base-url .badge {
+            font-size: 0.68rem; font-weight: 700; color: var(--faint);
+            text-transform: uppercase; letter-spacing: 0.5px;
+        }
+
+        /* one-liner rules */
+        .rules {
+            font-size: 0.88rem; color: var(--muted);
+            margin-bottom: 32px; line-height: 1.6;
+            padding: 14px 20px;
+            background: var(--card-bg); border: 1px solid var(--border);
+            border-radius: 10px;
+        }
+        .rules strong { color: var(--fg); }
+        .rules code {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.82rem; color: #555;
+            background: var(--code-bg); padding: 1px 5px; border-radius: 4px;
+        }
+
+        /* ── ENDPOINT CARD ────────────────────── */
+        .card {
+            border: 1px solid var(--border); border-radius: 12px;
+            margin-bottom: 22px; overflow: hidden;
+            background: var(--card-bg);
+            transition: box-shadow 0.15s ease;
+        }
+        .card:hover { box-shadow: 0 1px 6px rgba(0,0,0,0.04); }
+
+        .card-head {
+            display: flex; align-items: center; gap: 14px;
+            padding: 14px 22px;
+            background: var(--code-bg);
+            border-bottom: 1px solid var(--border);
+        }
+        .card-head .verb {
+            font-size: 0.7rem; font-weight: 800; text-transform: uppercase;
+            letter-spacing: 0.5px; padding: 3px 12px; border-radius: 5px;
+            color: #fff; min-width: 46px; text-align: center;
+        }
+        .verb.get  { background: var(--green); }
+        .verb.post { background: var(--purple); }
+
+        .card-head .path {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.9rem; font-weight: 500; color: var(--fg);
+        }
+
+        .card-body { padding: 22px 26px 26px; }
+
+        .card-body .desc {
+            font-size: 0.95rem; color: #555; line-height: 1.65;
+            margin-bottom: 20px;
+        }
+        .card-body .desc strong { color: var(--fg); }
+
+        /* section label (request / response) */
+        .section-label {
+            font-size: 0.7rem; font-weight: 700; text-transform: uppercase;
+            letter-spacing: 0.6px; color: var(--faint);
+            margin: 22px 0 8px;
+        }
+        .section-label:first-of-type { margin-top: 0; }
+
+        /* code blocks */
+        pre {
+            background: var(--code-bg); border: 1px solid var(--border);
+            border-radius: 8px; padding: 16px 20px;
+            white-space: pre-wrap; overflow-wrap: anywhere;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.8rem; line-height: 1.6; color: var(--fg);
+        }
+
+        /* footnote hint */
+        .hint {
+            font-size: 0.8rem; color: var(--faint); line-height: 1.5;
+            margin-top: 10px;
+        }
+        .hint code {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.78rem; color: #888;
+        }
+
+        .back-link {
+            display: inline-block; margin-top: 28px;
+            color: var(--fg); font-weight: 600; text-decoration: none;
+            border-bottom: 1.5px solid var(--fg); font-size: 0.88rem;
+            transition: color 0.12s, border-color 0.12s;
+        }
+        .back-link:hover { color: #555; border-color: #aaa; }
+
+        /* ── MOBILE ───────────────────────────── */
+        @media (max-width: 768px) {
+            .site-header { padding: 24px 20px 10px; }
+            .site-header h1 { font-size: 2rem; }
+            .content { padding: 0 18px; margin-top: 24px; }
+            .card-body { padding: 18px 18px 22px; }
+            .card-head { padding: 12px 18px; }
+            pre { padding: 14px 16px; font-size: 0.74rem; }
+            .rules { font-size: 0.84rem; padding: 12px 16px; }
+        }
+    </style>
+</head>
+<body>
+    <main class="app-container">
+        <a href="/" class="site-header">
+            <svg class="header-scribble"></svg>
+            <div>
+                <h1>tempfile</h1>
+                <div class="site-subtitle">Share files temporarily — they expire automatically</div>
+            </div>
+        </a>
+
+        <section class="content">
+            <h2>Upload API</h2>
+
+            <div class="base-url">
+                <span class="badge">Base</span>
+                <span>https://tmp-file-media-func-4epls.bunny.run</span>
+            </div>
+
+            <div class="rules">
+                Max <strong>100 MB</strong> &middot; Expires in <strong>10 sec to 1 week</strong> &middot;
+                Use the same <code>secretToken</code> for all three calls so the server knows the files are yours.
+            </div>
+
+            <!-- ── 1. GET /temp-file-url ──────────────────────────────── -->
+            <div class="card">
+                <div class="card-head">
+                    <span class="verb get">GET</span>
+                    <span class="path">/temp-file-url</span>
+                </div>
+                <div class="card-body">
+                    <p class="desc">Returns an <strong>upload URL</strong> and the <strong>headers</strong> you must send when PUTting the file. Only <code>filename</code> is required. Adds a random folder if you don't pass <code>secretToken</code>.</p>
+
+                    <p class="section-label">Request</p>
+                    <pre>curl \
+  "https://tmp-file-media-func-4epls.bunny.run/temp-file-url" \
+  -G \
+  --data-urlencode "filename=cat.png" \
+  --data-urlencode "contentType=image/png" \
+  --data-urlencode "cacheDuration=604800" \
+  --data-urlencode "secretToken=550e8400-e29b-41d4-a716-446655440000"</pre>
+
+                    <p class="section-label">Response</p>
+                    <pre>{
+  "uploadUrl": "https://s3.example.com/.../happy-blue-cat-john/cat.png?X-Amz-...",
+  "requiredHeaders": {
+    "Content-Type": "image/png",
+    "Cache-Control": "public, max-age=604800"
+  },
+  "filename": "cat.png",
+  "storageKey": "happy-blue-cat-john/cat.png",
+  "publicUrl": "https://cdn.tempfile.com/happy-blue-cat-john/cat.png"
+}</pre>
+                    <p class="hint">
+                        Include every header from <code>requiredHeaders</code> when you PUT — they're part of the signature.
+                    </p>
+                </div>
+            </div>
+
+            <!-- ── 2. POST /upload-complete ──────────────────────────── -->
+            <div class="card">
+                <div class="card-head">
+                    <span class="verb post">POST</span>
+                    <span class="path">/upload-complete</span>
+                </div>
+                <div class="card-body">
+                    <p class="desc">Call this <strong>after your PUT succeeds</strong>. Purges the CDN cache so the file is served fresh. Uses your <code>secretToken</code> to check ownership — returns <strong>403</strong> if it doesn't match.</p>
+
+                    <p class="section-label">Request</p>
+                    <pre>curl -X POST "https://tmp-file-media-func-4epls.bunny.run/upload-complete" \
+  -H "Content-Type: application/json" \
+  -d '{"publicUrl":"https://cdn.tempfile.com/happy-blue-cat-john/cat.png","secretToken":"550e8400-e29b-41d4-a716-446655440000"}'</pre>
+
+                    <p class="section-label">Response</p>
+                    <pre>{
+  "success": true,
+  "purged": "https://cdn.tempfile.com/happy-blue-cat-john/cat.png"
+}</pre>
+                </div>
+            </div>
+
+            <!-- ── 3. POST /delete-file ───────────────────────────────── -->
+            <div class="card">
+                <div class="card-head">
+                    <span class="verb post">POST</span>
+                    <span class="path">/delete-file</span>
+                </div>
+                <div class="card-body">
+                    <p class="desc">Permanently deletes the file. Same ownership check — needs the <code>secretToken</code> you used when creating it. Returns <code>{"success":true}</code> or <strong>403</strong>.</p>
+
+                    <p class="section-label">Request</p>
+                    <pre>curl -X POST "https://tmp-file-media-func-4epls.bunny.run/delete-file" \
+  -H "Content-Type: application/json" \
+  -d '{"publicUrl":"https://cdn.tempfile.com/happy-blue-cat-john/cat.png","secretToken":"550e8400-e29b-41d4-a716-446655440000"}'</pre>
+
+                    <p class="section-label">Response</p>
+                    <pre>{
+  "success": true,
+  "deleted": "https://cdn.tempfile.com/happy-blue-cat-john/cat.png"
+}</pre>
+                </div>
+            </div>
+
+            <a href="/" class="back-link">← Back to Home</a>
+        </section>
+    </main>
+
+    <script src="https://unpkg.com/roughjs@4.5.2/bundled/rough.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const rc = rough.svg(document.querySelector('.header-scribble'));
+            document.querySelector('.header-scribble').appendChild(
+                rc.circle(23, 23, 40, { roughness: 2, strokeWidth: 2, stroke: '#2d2d2d' })
+            );
+        });
+    </script>
+</body>
+</html>

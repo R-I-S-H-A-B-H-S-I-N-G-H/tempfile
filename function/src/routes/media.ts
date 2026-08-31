@@ -36,7 +36,7 @@ mediaRouter.get("/temp-file-url", async (c) => {
 
   const MIN_CACHE = 10;     // 10 secs
   const MAX_CACHE = 604800;    // 1 week
-  const MAX_FILE_SIZE = 100 * 1024 * 1024; // 100MB
+  const MAX_FILE_SIZE = 1.5 * 1024 * 1024 * 1024; // 1.5GB
 
   if (!filename) {
     return c.json({ error: "filename is required" }, 400);
@@ -45,7 +45,7 @@ mediaRouter.get("/temp-file-url", async (c) => {
   if (contentLength) {
     const size = Number(contentLength);
     if (isNaN(size) || size <= 0 || size > MAX_FILE_SIZE) {
-      return c.json({ error: `File size must be between 1 byte and 100MB` }, 400);
+      return c.json({ error: `File size must be between 1 byte and 1.5GB` }, 400);
     }
   }
 
